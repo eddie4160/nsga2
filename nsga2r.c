@@ -45,10 +45,12 @@ int main (int argc, char **argv)
     FILE *fpt3;
     FILE *fpt4;
     FILE *fpt5;
+    FILE *fpt_verbose;
     FILE *gp;
     population *parent_pop;
     population *child_pop;
     population *mixed_pop;
+    int member_id;
     if (argc<2)
     {
         printf("\n Usage ./nsga2r random_seed \n");
@@ -65,6 +67,7 @@ int main (int argc, char **argv)
     fpt3 = fopen("best_pop.out","w");
     fpt4 = fopen("all_pop.out","w");
     fpt5 = fopen("params.out","w");
+    fpt_verbose = fopen("verbose.txt","w");
     fprintf(fpt1,"# This file contains the data of initial population\n");
     fprintf(fpt2,"# This file contains the data of final population\n");
     fprintf(fpt3,"# This file contains the data of final feasible population (if found)\n");
@@ -360,6 +363,18 @@ int main (int argc, char **argv)
     fprintf(fpt2,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt3,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt4,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
+    fprintf(fpt_verbose,"# number of generations\n");
+    fprintf(fpt_verbose,"%d\n",ngen);
+    fprintf(fpt_verbose,"generation, ID");
+    for (i=0; i<(nreal+nbin); i++)
+    {
+        fprintf(fpt_verbose,", x%d",i+1);
+    }
+    for (i=0; i<nobj; i++)
+    {
+        fprintf(fpt_verbose,", f%d",i+1);
+    }
+    fprintf(fpt_verbose,"\n");
     nbinmut = 0;
     nrealmut = 0;
     nbincross = 0;
@@ -370,6 +385,7 @@ int main (int argc, char **argv)
     allocate_memory_pop (parent_pop, popsize);
     allocate_memory_pop (child_pop, popsize);
     allocate_memory_pop (mixed_pop, 2*popsize);
+    member_id = 1;
     randomize();
     initialize_pop (parent_pop);
     printf("\n Initialization done, now performing first generation");
@@ -379,6 +395,7 @@ int main (int argc, char **argv)
     report_pop (parent_pop, fpt1);
     fprintf(fpt4,"# gen = 1\n");
     report_pop(parent_pop,fpt4);
+    report_verbose_generation(parent_pop,fpt_verbose,1,&member_id);
     printf("\n gen = 1");
     fflush(stdout);
     if (choice!=0)    onthefly_display (parent_pop,gp,1);
@@ -400,6 +417,7 @@ int main (int argc, char **argv)
         generations is not desired, it will speed up the execution */
         fprintf(fpt4,"# gen = %d\n",i);
         report_pop(parent_pop,fpt4);
+        report_verbose_generation(parent_pop,fpt_verbose,i,&member_id);
         fflush(fpt4);
         if (choice!=0)    onthefly_display (parent_pop,gp,i);
         printf("\n gen = %d",i);
@@ -423,11 +441,13 @@ int main (int argc, char **argv)
     fflush(fpt3);
     fflush(fpt4);
     fflush(fpt5);
+    fflush(fpt_verbose);
     fclose(fpt1);
     fclose(fpt2);
     fclose(fpt3);
     fclose(fpt4);
     fclose(fpt5);
+    fclose(fpt_verbose);
     if (choice!=0)
     {
         pclose(gp);

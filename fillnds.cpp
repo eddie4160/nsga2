@@ -19,8 +19,8 @@ void fill_nondominated_sort (population *mixed_pop, population *new_pop)
     list *pool;
     list *elite;
     list *temp1, *temp2;
-    pool = (list *)malloc(sizeof(list));
-    elite = (list *)malloc(sizeof(list));
+    pool = new list;
+    elite = new list;
     front_size = 0;
     archieve_size=0;
     pool->index = -1;
@@ -119,13 +119,13 @@ void fill_nondominated_sort (population *mixed_pop, population *new_pop)
     {
         temp1 = pool;
         pool = pool->child;
-        free (temp1);
+        delete temp1;
     }
     while (elite!=NULL)
     {
         temp1 = elite;
         elite = elite->child;
-        free (temp1);
+        delete temp1;
     }
     return;
 }
@@ -137,7 +137,7 @@ void crowding_fill (population *mixed_pop, population *new_pop, int count, int f
     list *temp;
     int i, j;
     assign_crowding_distance_list (mixed_pop, elite->child, front_size);
-    dist = (int *)malloc(front_size*sizeof(int));
+    dist = new int[front_size];
     temp = elite->child;
     for (j=0; j<front_size; j++)
     {
@@ -149,6 +149,6 @@ void crowding_fill (population *mixed_pop, population *new_pop, int count, int f
     {
         copy_ind(&mixed_pop->ind[dist[j]], &new_pop->ind[i]);
     }
-    free (dist);
+    delete [] dist;
     return;
 }

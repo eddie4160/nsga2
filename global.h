@@ -115,6 +115,7 @@ void assign_rank_and_crowding_distance (population *new_pop);
 void report_pop (population *pop, FILE *fpt);
 void report_feasible (population *pop, FILE *fpt);
 void report_ind (individual *ind, FILE *fpt);
+void report_verbose_generation(FILE *fpt, population *pop, int generation, int *id_counter);
 
 void quicksort_front_obj(population *pop, int objcount, int obj_array[], int obj_array_size);
 void q_sort_front_obj(population *pop, int objcount, int obj_array[], int left, int right);

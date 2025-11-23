@@ -16,7 +16,7 @@ void insert (list *node, int x)
         printf("\n Error!! asked to enter after a NULL pointer, hence exiting \n");
         exit(1);
     }
-    temp = (list *)malloc(sizeof(list));
+    temp = new list;
     temp->index = x;
     temp->child = node->child;
     temp->parent = node;
@@ -43,6 +43,6 @@ list* del (list *node)
     {
         temp->child->parent = temp;
     }
-    free (node);
+    delete node;
     return (temp);
 }

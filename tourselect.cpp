@@ -15,8 +15,8 @@ void selection (population *old_pop, population *new_pop)
     int i;
     int rand;
     individual *parent1, *parent2;
-    a1 = (int *)malloc(popsize*sizeof(int));
-    a2 = (int *)malloc(popsize*sizeof(int));
+    a1 = new int[popsize];
+    a2 = new int[popsize];
     for (i=0; i<popsize; i++)
     {
         a1[i] = a2[i] = i;
@@ -41,8 +41,8 @@ void selection (population *old_pop, population *new_pop)
         parent2 = tournament (&old_pop->ind[a2[i+2]], &old_pop->ind[a2[i+3]]);
         crossover (parent1, parent2, &new_pop->ind[i+2], &new_pop->ind[i+3]);
     }
-    free (a1);
-    free (a2);
+    delete [] a1;
+    delete [] a2;
     return;
 }
 

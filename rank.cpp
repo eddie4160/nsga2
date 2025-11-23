@@ -18,8 +18,8 @@ void assign_rank_and_crowding_distance (population *new_pop)
     list *orig;
     list *cur;
     list *temp1, *temp2;
-    orig = (list *)malloc(sizeof(list));
-    cur = (list *)malloc(sizeof(list));
+    orig = new list;
+    cur = new list;
     front_size = 0;
     orig->index = -1;
     orig->parent = NULL;
@@ -98,7 +98,7 @@ void assign_rank_and_crowding_distance (population *new_pop)
         rank+=1;
     }
     while (orig->child!=NULL);
-    free (orig);
-    free (cur);
+    delete orig;
+    delete cur;
     return;
 }

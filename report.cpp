@@ -91,3 +91,26 @@ void report_feasible (population *pop, FILE *fpt)
     }
     return;
 }
+
+/* Function to print verbose generational data for real and binary variables along with objectives */
+void report_verbose_generation(FILE *fpt, population *pop, int generation, int *id_counter)
+{
+    for (int i=0; i<popsize; i++)
+    {
+        fprintf(fpt, "%d, %d", generation, *id_counter);
+        (*id_counter)++;
+        for (int j=0; j<nreal; j++)
+        {
+            fprintf(fpt, ", %e", pop->ind[i].xreal[j]);
+        }
+        for (int j=0; j<nbin; j++)
+        {
+            fprintf(fpt, ", %e", pop->ind[i].xbin[j]);
+        }
+        for (int j=0; j<nobj; j++)
+        {
+            fprintf(fpt, ", %e", pop->ind[i].obj[j]);
+        }
+        fprintf(fpt, "\n");
+    }
+}

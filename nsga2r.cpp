@@ -46,6 +46,8 @@ int main (int argc, char **argv)
     FILE *fpt4;
     FILE *fpt5;
     FILE *gp;
+    FILE *fpt_verbose;
+    int verbose_id = 1;
     population *parent_pop;
     population *child_pop;
     population *mixed_pop;
@@ -65,11 +67,13 @@ int main (int argc, char **argv)
     fpt3 = fopen("best_pop.out","w");
     fpt4 = fopen("all_pop.out","w");
     fpt5 = fopen("params.out","w");
+    fpt_verbose = fopen("verbose.txt","w");
     fprintf(fpt1,"# This file contains the data of initial population\n");
     fprintf(fpt2,"# This file contains the data of final population\n");
     fprintf(fpt3,"# This file contains the data of final feasible population (if found)\n");
     fprintf(fpt4,"# This file contains the data of all generations\n");
     fprintf(fpt5,"# This file contains information about inputs as read by the program\n");
+    fprintf(fpt_verbose,"# number of generations\n");
     printf("\n Enter the problem relevant and algorithm relevant parameters ... ");
     printf("\n Enter the population size (a multiple of 4) : ");
     scanf("%d",&popsize);
@@ -81,6 +85,7 @@ int main (int argc, char **argv)
     }
     printf("\n Enter the number of generations : ");
     scanf("%d",&ngen);
+    fprintf(fpt_verbose,"%d\n",ngen);
     if (ngen<1)
     {
         printf("\n number of generations read is : %d",ngen);
@@ -113,8 +118,8 @@ int main (int argc, char **argv)
     }
     if (nreal != 0)
     {
-        min_realvar = (double *)malloc(nreal*sizeof(double));
-        max_realvar = (double *)malloc(nreal*sizeof(double));
+        min_realvar = new double[nreal];
+        max_realvar = new double[nreal];
         for (i=0; i<nreal; i++)
         {
             printf ("\n Enter the lower limit of real variable %d : ",i+1);
@@ -170,9 +175,9 @@ int main (int argc, char **argv)
     }
     if (nbin != 0)
     {
-        nbits = (int *)malloc(nbin*sizeof(int));
-        min_binvar = (double *)malloc(nbin*sizeof(double));
-        max_binvar = (double *)malloc(nbin*sizeof(double));
+        nbits = new int[nbin];
+        min_binvar = new double[nbin];
+        max_binvar = new double[nbin];
         for (i=0; i<nbin; i++)
         {
             printf ("\n Enter the number of bits for binary variable %d : ",i+1);
@@ -356,6 +361,20 @@ int main (int argc, char **argv)
             bitlength += nbits[i];
         }
     }
+    fprintf(fpt_verbose,"generation, ID");
+    for (i=0; i<nreal; i++)
+    {
+        fprintf(fpt_verbose, ", x%d", i+1);
+    }
+    for (i=0; i<nbin; i++)
+    {
+        fprintf(fpt_verbose, ", xbin%d", i+1);
+    }
+    for (i=0; i<nobj; i++)
+    {
+        fprintf(fpt_verbose, ", f%d", i+1);
+    }
+    fprintf(fpt_verbose,"\n");
     fprintf(fpt1,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt2,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt3,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
@@ -364,9 +383,9 @@ int main (int argc, char **argv)
     nrealmut = 0;
     nbincross = 0;
     nrealcross = 0;
-    parent_pop = (population *)malloc(sizeof(population));
-    child_pop = (population *)malloc(sizeof(population));
-    mixed_pop = (population *)malloc(sizeof(population));
+    parent_pop = new population;
+    child_pop = new population;
+    mixed_pop = new population;
     allocate_memory_pop (parent_pop, popsize);
     allocate_memory_pop (child_pop, popsize);
     allocate_memory_pop (mixed_pop, 2*popsize);
@@ -379,6 +398,8 @@ int main (int argc, char **argv)
     report_pop (parent_pop, fpt1);
     fprintf(fpt4,"# gen = 1\n");
     report_pop(parent_pop,fpt4);
+    fprintf(fpt_verbose,"#Gen %d\n",1);
+    report_verbose_generation(fpt_verbose, parent_pop, 1, &verbose_id);
     printf("\n gen = 1");
     fflush(stdout);
     if (choice!=0)    onthefly_display (parent_pop,gp,1);
@@ -387,6 +408,7 @@ int main (int argc, char **argv)
     fflush(fpt3);
     fflush(fpt4);
     fflush(fpt5);
+    fflush(fpt_verbose);
     sleep(1);
     for (i=2; i<=ngen; i++)
     {
@@ -400,6 +422,8 @@ int main (int argc, char **argv)
         generations is not desired, it will speed up the execution */
         fprintf(fpt4,"# gen = %d\n",i);
         report_pop(parent_pop,fpt4);
+        fprintf(fpt_verbose,"#Gen %d\n",i);
+        report_verbose_generation(fpt_verbose, parent_pop, i, &verbose_id);
         fflush(fpt4);
         if (choice!=0)    onthefly_display (parent_pop,gp,i);
         printf("\n gen = %d",i);
@@ -423,32 +447,34 @@ int main (int argc, char **argv)
     fflush(fpt3);
     fflush(fpt4);
     fflush(fpt5);
+    fflush(fpt_verbose);
     fclose(fpt1);
     fclose(fpt2);
     fclose(fpt3);
     fclose(fpt4);
     fclose(fpt5);
+    fclose(fpt_verbose);
     if (choice!=0)
     {
         pclose(gp);
     }
     if (nreal!=0)
     {
-        free (min_realvar);
-        free (max_realvar);
+        delete [] min_realvar;
+        delete [] max_realvar;
     }
     if (nbin!=0)
     {
-        free (min_binvar);
-        free (max_binvar);
-        free (nbits);
+        delete [] min_binvar;
+        delete [] max_binvar;
+        delete [] nbits;
     }
     deallocate_memory_pop (parent_pop, popsize);
     deallocate_memory_pop (child_pop, popsize);
     deallocate_memory_pop (mixed_pop, 2*popsize);
-    free (parent_pop);
-    free (child_pop);
-    free (mixed_pop);
+    delete parent_pop;
+    delete child_pop;
+    delete mixed_pop;
     printf("\n Routine successfully exited \n");
     return (0);
 }

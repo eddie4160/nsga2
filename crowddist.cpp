@@ -26,11 +26,11 @@ void assign_crowding_distance_list (population *pop, list *lst, int front_size)
         pop->ind[lst->child->index].crowd_dist = INF;
         return;
     }
-    obj_array = (int **)malloc(nobj*sizeof(int*));
-    dist = (int *)malloc(front_size*sizeof(int));
+    obj_array = new int*[nobj];
+    dist = new int[front_size];
     for (i=0; i<nobj; i++)
     {
-        obj_array[i] = (int *)malloc(front_size*sizeof(int));
+        obj_array[i] = new int[front_size];
     }
     for (j=0; j<front_size; j++)
     {
@@ -38,12 +38,12 @@ void assign_crowding_distance_list (population *pop, list *lst, int front_size)
         temp = temp->child;
     }
     assign_crowding_distance (pop, dist, obj_array, front_size);
-    free (dist);
+    delete [] dist;
     for (i=0; i<nobj; i++)
     {
-        free (obj_array[i]);
+        delete [] obj_array[i];
     }
-    free (obj_array);
+    delete [] obj_array;
     return;
 }
 
@@ -66,23 +66,23 @@ void assign_crowding_distance_indices (population *pop, int c1, int c2)
         pop->ind[c2].crowd_dist = INF;
         return;
     }
-    obj_array = (int **)malloc(nobj*sizeof(int*));
-    dist = (int *)malloc(front_size*sizeof(int));
+    obj_array = new int*[nobj];
+    dist = new int[front_size];
     for (i=0; i<nobj; i++)
     {
-        obj_array[i] = (int *)malloc(front_size*sizeof(int));
+        obj_array[i] = new int[front_size];
     }
     for (j=0; j<front_size; j++)
     {
         dist[j] = c1++;
     }
     assign_crowding_distance (pop, dist, obj_array, front_size);
-    free (dist);
+    delete [] dist;
     for (i=0; i<nobj; i++)
     {
-        free (obj_array[i]);
+        delete [] obj_array[i];
     }
-    free (obj_array);
+    delete [] obj_array;
     return;
 }
 

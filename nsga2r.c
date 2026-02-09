@@ -364,8 +364,7 @@ int main (int argc, char **argv)
     fprintf(fpt3,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt4,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt_verbose,"# number of generations\n");
-    fprintf(fpt_verbose,"%d\n",ngen);
-    fprintf(fpt_verbose,"generation, ID");
+    fprintf(fpt_verbose,"number of generations, ID");
     for (i=0; i<(nreal+nbin); i++)
     {
         fprintf(fpt_verbose,", x%d",i+1);

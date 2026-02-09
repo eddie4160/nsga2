@@ -96,6 +96,10 @@ void report_feasible (population *pop, FILE *fpt)
 void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id)
 {
     int i, j;
+    if (generation > 1)
+    {
+        fprintf(fpt,"\n");
+    }
     fprintf(fpt,"#Gen %d\n",generation);
     for (i=0; i<popsize; i++)
     {

@@ -3,6 +3,7 @@
 # include <stdio.h>
 # include <stdlib.h>
 # include <math.h>
+# include <Python.h>
 
 # include "global.h"
 # include "rand.h"
@@ -23,7 +24,8 @@
 /* # define osy */
 /* # define srn */
 /* # define tnk */
- # define ctp1 
+/* # define ctp1 */
+ # define krg_surrogate
 /* # define ctp2 */
 /* # define ctp3 */
 /* # define ctp4 */
@@ -31,6 +33,147 @@
 /* # define ctp6 */
 /* # define ctp7 */
 /*# define ctp8*/
+
+#ifdef krg_surrogate
+static PyObject *krg_module = NULL;
+static PyObject *krg_predict_function = NULL;
+static int krg_python_ready = 0;
+
+static double round_to_nearest_integer (double value)
+{
+    if (value >= 0.0)
+    {
+        return floor(value + 0.5);
+    }
+    return ceil(value - 0.5);
+}
+
+static double clamp_value (double value, double lower, double upper)
+{
+    if (value < lower)
+    {
+        return lower;
+    }
+    if (value > upper)
+    {
+        return upper;
+    }
+    return value;
+}
+
+static void initialize_krg_surrogate (void)
+{
+    PyObject *path_list;
+    PyObject *current_directory;
+    if (krg_python_ready)
+    {
+        return;
+    }
+    Py_Initialize();
+    path_list = PySys_GetObject("path");
+    current_directory = PyUnicode_FromString(".");
+    if (path_list == NULL || current_directory == NULL)
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to initialize Python path for surrogate evaluation.\n");
+        exit(1);
+    }
+    if (PyList_Insert(path_list, 0, current_directory) != 0)
+    {
+        Py_DECREF(current_directory);
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to register surrogate module search path.\n");
+        exit(1);
+    }
+    Py_DECREF(current_directory);
+    krg_module = PyImport_ImportModule("krg_predict");
+    if (krg_module == NULL)
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to import krg_predict.py.\n");
+        exit(1);
+    }
+    krg_predict_function = PyObject_GetAttrString(krg_module, "predict");
+    if (krg_predict_function == NULL || !PyCallable_Check(krg_predict_function))
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to load callable predict() from krg_predict.py.\n");
+        exit(1);
+    }
+    krg_python_ready = 1;
+}
+
+static void evaluate_krg_model (const char *model_filename, double *values, double *mu, double *std)
+{
+    PyObject *arguments;
+    PyObject *value_list;
+    PyObject *result;
+    PyObject *mu_object;
+    PyObject *std_object;
+    Py_ssize_t index;
+    initialize_krg_surrogate();
+    value_list = PyList_New((Py_ssize_t)nreal);
+    if (value_list == NULL)
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to allocate Python input list for surrogate evaluation.\n");
+        exit(1);
+    }
+    for (index=0; index<(Py_ssize_t)nreal; index++)
+    {
+        PyObject *entry = PyFloat_FromDouble(values[index]);
+        if (entry == NULL)
+        {
+            Py_DECREF(value_list);
+            PyErr_Print();
+            fprintf(stderr, "\n Failed to convert design variable for surrogate evaluation.\n");
+            exit(1);
+        }
+        PyList_SetItem(value_list, index, entry);
+    }
+    arguments = Py_BuildValue("(sO)", model_filename, value_list);
+    Py_DECREF(value_list);
+    if (arguments == NULL)
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to build Python surrogate arguments.\n");
+        exit(1);
+    }
+    result = PyObject_CallObject(krg_predict_function, arguments);
+    Py_DECREF(arguments);
+    if (result == NULL)
+    {
+        PyErr_Print();
+        fprintf(stderr, "\n Python surrogate prediction failed for %s.\n", model_filename);
+        exit(1);
+    }
+    if (!PyTuple_Check(result) || PyTuple_Size(result) != 2)
+    {
+        Py_DECREF(result);
+        fprintf(stderr, "\n Surrogate prediction must return a (mu, std) tuple.\n");
+        exit(1);
+    }
+    mu_object = PyTuple_GetItem(result, 0);
+    std_object = PyTuple_GetItem(result, 1);
+    if (mu_object == NULL || std_object == NULL)
+    {
+        Py_DECREF(result);
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to unpack surrogate prediction output.\n");
+        exit(1);
+    }
+    *mu = PyFloat_AsDouble(mu_object);
+    *std = PyFloat_AsDouble(std_object);
+    if (PyErr_Occurred())
+    {
+        Py_DECREF(result);
+        PyErr_Print();
+        fprintf(stderr, "\n Failed to convert surrogate prediction output to double.\n");
+        exit(1);
+    }
+    Py_DECREF(result);
+}
+#endif
 
 /*  Test problem SCH1
     # of real variables = 1
@@ -40,10 +183,43 @@
     */
 
 #ifdef sch1
-void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *constr)
+void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr)
 {
     obj[0] = pow(xreal[0],2.0);
     obj[1] = pow((xreal[0]-2.0),2.0);
+    return;
+}
+#endif
+
+#ifdef krg_surrogate
+void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr)
+{
+    double values[9];
+    int i;
+    if (nreal != 9)
+    {
+        fprintf(stderr, "\n krg_surrogate expects exactly 9 real variables.\n");
+        exit(1);
+    }
+    if (nobj != 2)
+    {
+        fprintf(stderr, "\n krg_surrogate expects exactly 2 objectives.\n");
+        exit(1);
+    }
+    values[0] = clamp_value(round_to_nearest_integer(xreal[0]), 1.0, 20.0);
+    for (i=1; i<5; i++)
+    {
+        values[i] = clamp_value(round_to_nearest_integer(xreal[i]), 1.0, 6.0);
+    }
+    for (i=5; i<9; i++)
+    {
+        values[i] = clamp_value(xreal[i], -5.0, 20.0);
+    }
+    (void)xbin;
+    (void)gene;
+    (void)constr;
+    evaluate_krg_model("krg_model_Pt.pkl", values, &(obj[0]), &(obj_std[0]));
+    evaluate_krg_model("krg_model_Q.pkl", values, &(obj[1]), &(obj_std[1]));
     return;
 }
 #endif

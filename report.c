@@ -91,3 +91,37 @@ void report_feasible (population *pop, FILE *fpt)
     }
     return;
 }
+
+/* Function to print verbose generation level information */
+void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id)
+{
+    int i, j;
+    if (generation > 1)
+    {
+        fprintf(fpt,"\n");
+    }
+    fprintf(fpt,"#Gen %d\n",generation);
+    for (i=0; i<popsize; i++)
+    {
+        fprintf(fpt,"%d, %d",generation,*member_id);
+        for (j=0; j<nreal; j++)
+        {
+            fprintf(fpt,", %e",pop->ind[i].xreal[j]);
+        }
+        for (j=0; j<nbin; j++)
+        {
+            fprintf(fpt,", %e",pop->ind[i].xbin[j]);
+        }
+        for (j=0; j<nobj; j++)
+        {
+            fprintf(fpt,", %e",pop->ind[i].obj[j]);
+        }
+        for (j=0; j<nobj; j++)
+        {
+            fprintf(fpt,", %e",pop->ind[i].obj_std[j]);
+        }
+        fprintf(fpt,"\n");
+        (*member_id)++;
+    }
+    return;
+}

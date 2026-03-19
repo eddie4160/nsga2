@@ -17,6 +17,7 @@ typedef struct
     int **gene;
     double *xbin;
     double *obj;
+    double *obj_std;
     double *constr;
     double crowd_dist;
 }
@@ -108,13 +109,14 @@ void mutation_ind (individual *ind);
 void bin_mutate_ind (individual *ind);
 void real_mutate_ind (individual *ind);
 
-void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *constr);
+void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr);
 
 void assign_rank_and_crowding_distance (population *new_pop);
 
 void report_pop (population *pop, FILE *fpt);
 void report_feasible (population *pop, FILE *fpt);
 void report_ind (individual *ind, FILE *fpt);
+void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id);
 
 void quicksort_front_obj(population *pop, int objcount, int obj_array[], int obj_array_size);
 void q_sort_front_obj(population *pop, int objcount, int obj_array[], int left, int right);

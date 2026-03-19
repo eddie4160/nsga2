@@ -136,7 +136,7 @@ void report_verbose_generation (population *pop, FILE *fpt, int generation, int 
         }
         for (j=0; j<nobj; j++)
         {
-            fprintf(fpt,", %e",pop->ind[i].obj[j]);
+            fprintf(fpt,", %e",get_report_objective_value(j, pop->ind[i].obj[j]));
         }
         for (j=0; j<nobj; j++)
         {

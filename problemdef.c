@@ -215,6 +215,7 @@ void test_problem (double *xreal, double *xbin, int **gene, double *obj, double 
 void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr)
 {
     double values[9];
+    double heat_duty;
     if (nobj != 2)
     {
         fprintf(stderr, "\n krg_surrogate expects exactly 2 objectives.\n");
@@ -224,10 +225,22 @@ void test_problem (double *xreal, double *xbin, int **gene, double *obj, double 
     (void)gene;
     (void)constr;
     evaluate_krg_model("krg_model_Pt.pkl", values, 9, &(obj[0]), &(obj_std[0]));
-    evaluate_krg_model("krg_model_Q.pkl", values, 9, &(obj[1]), &(obj_std[1]));
+    evaluate_krg_model("krg_model_Q.pkl", values, 9, &heat_duty, &(obj_std[1]));
+    obj[1] = -heat_duty;
     return;
 }
 #endif
+
+double get_report_objective_value (int objective_index, double objective_value)
+{
+#ifdef krg_surrogate
+    if (objective_index == 1)
+    {
+        return -objective_value;
+    }
+#endif
+    return objective_value;
+}
 
 /*  Test problem SCH2
     # of real variables = 1

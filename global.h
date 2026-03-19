@@ -110,6 +110,7 @@ void bin_mutate_ind (individual *ind);
 void real_mutate_ind (individual *ind);
 
 void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr);
+double get_report_objective_value (int objective_index, double objective_value);
 
 void assign_rank_and_crowding_distance (population *new_pop);
 

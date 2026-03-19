@@ -126,13 +126,13 @@ void report_verbose_generation (population *pop, FILE *fpt, int generation, int 
     for (i=0; i<popsize; i++)
     {
         fprintf(fpt,"%d, %d",generation,*member_id);
-        for (j=0; j<nreal; j++)
-        {
-            fprintf(fpt,", %e",pop->ind[i].xreal[j]);
-        }
         for (j=0; j<nbin; j++)
         {
             fprintf(fpt,", %.0f",clamp_value(round_to_nearest_integer(pop->ind[i].xbin[j]), min_binvar[j], max_binvar[j]));
+        }
+        for (j=0; j<nreal; j++)
+        {
+            fprintf(fpt,", %e",pop->ind[i].xreal[j]);
         }
         for (j=0; j<nobj; j++)
         {

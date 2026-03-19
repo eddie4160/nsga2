@@ -113,13 +113,13 @@ static void build_krg_design_vector (double *xreal, double *xbin, double *values
         fprintf(stderr, "\n krg_surrogate expects exactly 9 total design variables, but received %d.\n", total_variables);
         exit(1);
     }
-    for (i=0; i<nreal; i++)
-    {
-        values[i] = clamp_value(xreal[i], min_realvar[i], max_realvar[i]);
-    }
     for (i=0; i<nbin; i++)
     {
-        values[nreal+i] = clamp_value(round_to_nearest_integer(xbin[i]), min_binvar[i], max_binvar[i]);
+        values[i] = clamp_value(round_to_nearest_integer(xbin[i]), min_binvar[i], max_binvar[i]);
+    }
+    for (i=0; i<nreal; i++)
+    {
+        values[nbin+i] = clamp_value(xreal[i], min_realvar[i], max_realvar[i]);
     }
 }
 

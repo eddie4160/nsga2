@@ -29,6 +29,26 @@ static double clamp_value (double value, double lower, double upper)
     return value;
 }
 
+static void report_human_readable_feasible_individual (individual *ind, FILE *fpt)
+{
+    int j;
+    for (j=0; j<nbin; j++)
+    {
+        fprintf(fpt,"%.0f",clamp_value(round_to_nearest_integer(ind->xbin[j]), min_binvar[j], max_binvar[j]));
+        fprintf(fpt,", ");
+    }
+    fprintf(fpt,"%e",ind->xreal[0]);
+    for (j=0; j<nobj; j++)
+    {
+        fprintf(fpt,", %e",get_report_objective_value(j, ind->obj[j]));
+    }
+    for (j=0; j<nobj; j++)
+    {
+        fprintf(fpt,", %e",ind->obj_std[j]);
+    }
+    fprintf(fpt,"\n");
+}
+
 /* Function to print the information of a population in a file */
 void report_pop (population *pop, FILE *fpt)
 {
@@ -81,21 +101,7 @@ void report_feasible (population *pop, FILE *fpt)
         {
             if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1)
             {
-                for (j=0; j<nbin; j++)
-                {
-                    fprintf(fpt,"%.0f",clamp_value(round_to_nearest_integer(pop->ind[i].xbin[j]), min_binvar[j], max_binvar[j]));
-                    fprintf(fpt,", ");
-                }
-                fprintf(fpt,"%e",pop->ind[i].xreal[0]);
-                for (j=0; j<nobj; j++)
-                {
-                    fprintf(fpt,", %e",get_report_objective_value(j, pop->ind[i].obj[j]));
-                }
-                for (j=0; j<nobj; j++)
-                {
-                    fprintf(fpt,", %e",pop->ind[i].obj_std[j]);
-                }
-                fprintf(fpt,"\n");
+                report_human_readable_feasible_individual(&(pop->ind[i]), fpt);
             }
         }
         return;
@@ -103,6 +109,88 @@ void report_feasible (population *pop, FILE *fpt)
     for (i=0; i<popsize; i++)
     {
         if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1)
+        {
+            for (j=0; j<nobj; j++)
+            {
+                fprintf(fpt,"%e\t",pop->ind[i].obj[j]);
+            }
+            if (ncon!=0)
+            {
+                for (j=0; j<ncon; j++)
+                {
+                    fprintf(fpt,"%e\t",pop->ind[i].constr[j]);
+                }
+            }
+            if (nreal!=0)
+            {
+                for (j=0; j<nreal; j++)
+                {
+                    fprintf(fpt,"%e\t",pop->ind[i].xreal[j]);
+                }
+            }
+            if (nbin!=0)
+            {
+                for (j=0; j<nbin; j++)
+                {
+                    for (k=0; k<nbits[j]; k++)
+                    {
+                        fprintf(fpt,"%d\t",pop->ind[i].gene[j][k]);
+                    }
+                }
+            }
+            fprintf(fpt,"%e\t",pop->ind[i].constr_violation);
+            fprintf(fpt,"%d\t",pop->ind[i].rank);
+            fprintf(fpt,"%e\n",pop->ind[i].crowd_dist);
+        }
+    }
+    return;
+}
+
+void report_archive_feasible (population *pop, int size, FILE *fpt)
+{
+    int i, j, k;
+    int dominated;
+    if (nobj==2 && nreal==1 && nbin==8)
+    {
+        fprintf(fpt,"r1, r2, r3, r4, m1, m2, m3, m4, dh, Pt, Q, std_f1, std_f2\n");
+        for (i=0; i<size; i++)
+        {
+            if (pop->ind[i].constr_violation != 0.0)
+            {
+                continue;
+            }
+            dominated = 0;
+            for (j=0; j<size; j++)
+            {
+                if (i!=j && check_dominance(&(pop->ind[j]), &(pop->ind[i])) == 1)
+                {
+                    dominated = 1;
+                    break;
+                }
+            }
+            if (!dominated)
+            {
+                report_human_readable_feasible_individual(&(pop->ind[i]), fpt);
+            }
+        }
+        return;
+    }
+    for (i=0; i<size; i++)
+    {
+        if (pop->ind[i].constr_violation != 0.0)
+        {
+            continue;
+        }
+        dominated = 0;
+        for (j=0; j<size; j++)
+        {
+            if (i!=j && check_dominance(&(pop->ind[j]), &(pop->ind[i])) == 1)
+            {
+                dominated = 1;
+                break;
+            }
+        }
+        if (!dominated)
         {
             for (j=0; j<nobj; j++)
             {

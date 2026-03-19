@@ -116,6 +116,7 @@ void assign_rank_and_crowding_distance (population *new_pop);
 
 void report_pop (population *pop, FILE *fpt);
 void report_feasible (population *pop, FILE *fpt);
+void report_archive_feasible (population *pop, int size, FILE *fpt);
 void report_ind (individual *ind, FILE *fpt);
 void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id);
 

@@ -50,6 +50,8 @@ int main (int argc, char **argv)
     population *parent_pop;
     population *child_pop;
     population *mixed_pop;
+    population *archive_pop;
+    int archive_count;
     int member_id;
     if (argc<2)
     {
@@ -70,7 +72,7 @@ int main (int argc, char **argv)
     fpt_verbose = fopen("verbose.txt","w");
     fprintf(fpt1,"# This file contains the data of initial population\n");
     fprintf(fpt2,"# This file contains the data of final population\n");
-    fprintf(fpt3,"# This file contains the data of final feasible population (if found)\n");
+    fprintf(fpt3,"# This file contains the feasible non-dominated solutions across all stored populations\n");
     fprintf(fpt4,"# This file contains the data of all generations\n");
     fprintf(fpt5,"# This file contains information about inputs as read by the program\n");
     printf("\n Enter the problem relevant and algorithm relevant parameters ... ");
@@ -385,9 +387,12 @@ int main (int argc, char **argv)
     parent_pop = (population *)malloc(sizeof(population));
     child_pop = (population *)malloc(sizeof(population));
     mixed_pop = (population *)malloc(sizeof(population));
+    archive_pop = (population *)malloc(sizeof(population));
     allocate_memory_pop (parent_pop, popsize);
     allocate_memory_pop (child_pop, popsize);
     allocate_memory_pop (mixed_pop, 2*popsize);
+    allocate_memory_pop (archive_pop, popsize*ngen);
+    archive_count = 0;
     member_id = 1;
     randomize();
     initialize_pop (parent_pop);
@@ -399,6 +404,11 @@ int main (int argc, char **argv)
     fprintf(fpt4,"# gen = 1\n");
     report_pop(parent_pop,fpt4);
     report_verbose_generation(parent_pop,fpt_verbose,1,&member_id);
+    for (i=0; i<popsize; i++)
+    {
+        copy_ind(&(parent_pop->ind[i]), &(archive_pop->ind[archive_count]));
+        archive_count++;
+    }
     printf("\n gen = 1");
     fflush(stdout);
     if (choice!=0)    onthefly_display (parent_pop,gp,1);
@@ -421,13 +431,18 @@ int main (int argc, char **argv)
         fprintf(fpt4,"# gen = %d\n",i);
         report_pop(parent_pop,fpt4);
         report_verbose_generation(parent_pop,fpt_verbose,i,&member_id);
+        for (int archive_index=0; archive_index<popsize; archive_index++)
+        {
+            copy_ind(&(parent_pop->ind[archive_index]), &(archive_pop->ind[archive_count]));
+            archive_count++;
+        }
         fflush(fpt4);
         if (choice!=0)    onthefly_display (parent_pop,gp,i);
         printf("\n gen = %d",i);
     }
     printf("\n Generations finished, now reporting solutions");
     report_pop(parent_pop,fpt2);
-    report_feasible(parent_pop,fpt3);
+    report_archive_feasible(archive_pop,archive_count,fpt3);
     if (nreal!=0)
     {
         fprintf(fpt5,"\n Number of crossover of real variable = %d",nrealcross);
@@ -469,9 +484,11 @@ int main (int argc, char **argv)
     deallocate_memory_pop (parent_pop, popsize);
     deallocate_memory_pop (child_pop, popsize);
     deallocate_memory_pop (mixed_pop, 2*popsize);
+    deallocate_memory_pop (archive_pop, popsize*ngen);
     free (parent_pop);
     free (child_pop);
     free (mixed_pop);
+    free (archive_pop);
     printf("\n Routine successfully exited \n");
     return (0);
 }

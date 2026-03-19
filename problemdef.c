@@ -103,7 +103,27 @@ static void initialize_krg_surrogate (void)
     krg_python_ready = 1;
 }
 
-static void evaluate_krg_model (const char *model_filename, double *values, double *mu, double *std)
+static void build_krg_design_vector (double *xreal, double *xbin, double *values)
+{
+    int i;
+    int total_variables;
+    total_variables = nreal + nbin;
+    if (total_variables != 9)
+    {
+        fprintf(stderr, "\n krg_surrogate expects exactly 9 total design variables, but received %d.\n", total_variables);
+        exit(1);
+    }
+    for (i=0; i<nreal; i++)
+    {
+        values[i] = clamp_value(xreal[i], min_realvar[i], max_realvar[i]);
+    }
+    for (i=0; i<nbin; i++)
+    {
+        values[nreal+i] = clamp_value(round_to_nearest_integer(xbin[i]), min_binvar[i], max_binvar[i]);
+    }
+}
+
+static void evaluate_krg_model (const char *model_filename, double *values, int variable_count, double *mu, double *std)
 {
     PyObject *arguments;
     PyObject *value_list;
@@ -112,14 +132,14 @@ static void evaluate_krg_model (const char *model_filename, double *values, doub
     PyObject *std_object;
     Py_ssize_t index;
     initialize_krg_surrogate();
-    value_list = PyList_New((Py_ssize_t)nreal);
+    value_list = PyList_New((Py_ssize_t)variable_count);
     if (value_list == NULL)
     {
         PyErr_Print();
         fprintf(stderr, "\n Failed to allocate Python input list for surrogate evaluation.\n");
         exit(1);
     }
-    for (index=0; index<(Py_ssize_t)nreal; index++)
+    for (index=0; index<(Py_ssize_t)variable_count; index++)
     {
         PyObject *entry = PyFloat_FromDouble(values[index]);
         if (entry == NULL)
@@ -195,31 +215,16 @@ void test_problem (double *xreal, double *xbin, int **gene, double *obj, double 
 void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr)
 {
     double values[9];
-    int i;
-    if (nreal != 9)
-    {
-        fprintf(stderr, "\n krg_surrogate expects exactly 9 real variables.\n");
-        exit(1);
-    }
     if (nobj != 2)
     {
         fprintf(stderr, "\n krg_surrogate expects exactly 2 objectives.\n");
         exit(1);
     }
-    values[0] = clamp_value(round_to_nearest_integer(xreal[0]), 1.0, 20.0);
-    for (i=1; i<5; i++)
-    {
-        values[i] = clamp_value(round_to_nearest_integer(xreal[i]), 1.0, 6.0);
-    }
-    for (i=5; i<9; i++)
-    {
-        values[i] = clamp_value(xreal[i], -5.0, 20.0);
-    }
-    (void)xbin;
+    build_krg_design_vector(xreal, xbin, values);
     (void)gene;
     (void)constr;
-    evaluate_krg_model("krg_model_Pt.pkl", values, &(obj[0]), &(obj_std[0]));
-    evaluate_krg_model("krg_model_Q.pkl", values, &(obj[1]), &(obj_std[1]));
+    evaluate_krg_model("krg_model_Pt.pkl", values, 9, &(obj[0]), &(obj_std[0]));
+    evaluate_krg_model("krg_model_Q.pkl", values, 9, &(obj[1]), &(obj_std[1]));
     return;
 }
 #endif

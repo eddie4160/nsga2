@@ -7,6 +7,28 @@
 # include "global.h"
 # include "rand.h"
 
+static double round_to_nearest_integer (double value)
+{
+    if (value >= 0.0)
+    {
+        return floor(value + 0.5);
+    }
+    return ceil(value - 0.5);
+}
+
+static double clamp_value (double value, double lower, double upper)
+{
+    if (value < lower)
+    {
+        return lower;
+    }
+    if (value > upper)
+    {
+        return upper;
+    }
+    return value;
+}
+
 /* Function to print the information of a population in a file */
 void report_pop (population *pop, FILE *fpt)
 {
@@ -110,7 +132,7 @@ void report_verbose_generation (population *pop, FILE *fpt, int generation, int 
         }
         for (j=0; j<nbin; j++)
         {
-            fprintf(fpt,", %e",pop->ind[i].xbin[j]);
+            fprintf(fpt,", %.0f",clamp_value(round_to_nearest_integer(pop->ind[i].xbin[j]), min_binvar[j], max_binvar[j]));
         }
         for (j=0; j<nobj; j++)
         {

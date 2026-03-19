@@ -74,6 +74,32 @@ void report_pop (population *pop, FILE *fpt)
 void report_feasible (population *pop, FILE *fpt)
 {
     int i, j, k;
+    if (nobj==2 && nreal==1 && nbin==8)
+    {
+        fprintf(fpt,"r1, r2, r3, r4, m1, m2, m3, m4, dh, Pt, Q, std_f1, std_f2\n");
+        for (i=0; i<popsize; i++)
+        {
+            if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1)
+            {
+                for (j=0; j<nbin; j++)
+                {
+                    fprintf(fpt,"%.0f",clamp_value(round_to_nearest_integer(pop->ind[i].xbin[j]), min_binvar[j], max_binvar[j]));
+                    fprintf(fpt,", ");
+                }
+                fprintf(fpt,"%e",pop->ind[i].xreal[0]);
+                for (j=0; j<nobj; j++)
+                {
+                    fprintf(fpt,", %e",get_report_objective_value(j, pop->ind[i].obj[j]));
+                }
+                for (j=0; j<nobj; j++)
+                {
+                    fprintf(fpt,", %e",pop->ind[i].obj_std[j]);
+                }
+                fprintf(fpt,"\n");
+            }
+        }
+        return;
+    }
     for (i=0; i<popsize; i++)
     {
         if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1)

@@ -45,6 +45,7 @@ int main (int argc, char **argv)
     FILE *fpt3;
     FILE *fpt4;
     FILE *fpt5;
+    FILE *fpt6;
     FILE *fpt_verbose;
     FILE *gp;
     population *parent_pop;
@@ -69,12 +70,14 @@ int main (int argc, char **argv)
     fpt3 = fopen("best_pop.out","w");
     fpt4 = fopen("all_pop.out","w");
     fpt5 = fopen("params.out","w");
+    fpt6 = fopen("pareto_all_pop.out","w");
     fpt_verbose = fopen("verbose.txt","w");
     fprintf(fpt1,"# This file contains the data of initial population\n");
     fprintf(fpt2,"# This file contains the data of final population\n");
-    fprintf(fpt3,"# This file contains the feasible non-dominated solutions across all stored populations\n");
+    fprintf(fpt3,"# This file contains the data of final feasible population (if found)\n");
     fprintf(fpt4,"# This file contains the data of all generations\n");
     fprintf(fpt5,"# This file contains information about inputs as read by the program\n");
+    fprintf(fpt6,"# This file contains the feasible non-dominated solutions across all stored populations\n");
     printf("\n Enter the problem relevant and algorithm relevant parameters ... ");
     printf("\n Enter the population size (a multiple of 4) : ");
     scanf("%d",&popsize);
@@ -442,7 +445,8 @@ int main (int argc, char **argv)
     }
     printf("\n Generations finished, now reporting solutions");
     report_pop(parent_pop,fpt2);
-    report_archive_feasible(archive_pop,archive_count,fpt3);
+    report_feasible(parent_pop,fpt3);
+    report_archive_feasible(archive_pop,archive_count,fpt6);
     if (nreal!=0)
     {
         fprintf(fpt5,"\n Number of crossover of real variable = %d",nrealcross);
@@ -459,12 +463,14 @@ int main (int argc, char **argv)
     fflush(fpt3);
     fflush(fpt4);
     fflush(fpt5);
+    fflush(fpt6);
     fflush(fpt_verbose);
     fclose(fpt1);
     fclose(fpt2);
     fclose(fpt3);
     fclose(fpt4);
     fclose(fpt5);
+    fclose(fpt6);
     fclose(fpt_verbose);
     if (choice!=0)
     {

@@ -37,6 +37,7 @@ void allocate_memory_ind (individual *ind)
         }
     }
     ind->obj = (double *)malloc(nobj*sizeof(double));
+    ind->obj_std = (double *)malloc(nobj*sizeof(double));
     if (ncon != 0)
     {
         ind->constr = (double *)malloc(ncon*sizeof(double));
@@ -74,6 +75,7 @@ void deallocate_memory_ind (individual *ind)
         free(ind->gene);
     }
     free(ind->obj);
+    free(ind->obj_std);
     if (ncon != 0)
     {
         free(ind->constr);

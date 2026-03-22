@@ -95,6 +95,20 @@ int main (int argc, char **argv)
         printf("\n Wrong nuber of generations entered, hence exiting \n");
         exit (1);
     }
+    fprintf(fpt1,"# population size = %d\n",popsize);
+    fprintf(fpt1,"# number of generations = %d\n",ngen);
+    fprintf(fpt2,"# population size = %d\n",popsize);
+    fprintf(fpt2,"# number of generations = %d\n",ngen);
+    fprintf(fpt3,"# population size = %d\n",popsize);
+    fprintf(fpt3,"# number of generations = %d\n",ngen);
+    fprintf(fpt4,"# population size = %d\n",popsize);
+    fprintf(fpt4,"# number of generations = %d\n",ngen);
+    fprintf(fpt5,"# population size = %d\n",popsize);
+    fprintf(fpt5,"# number of generations = %d\n",ngen);
+    fprintf(fpt6,"# population size = %d\n",popsize);
+    fprintf(fpt6,"# number of generations = %d\n",ngen);
+    fprintf(fpt_verbose,"# population size = %d\n",popsize);
+    fprintf(fpt_verbose,"# number of generations = %d\n",ngen);
     printf("\n Enter the number of objectives : ");
     scanf("%d",&nobj);
     if (nobj<1)

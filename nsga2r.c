@@ -4,6 +4,7 @@
 # include <stdlib.h>
 # include <math.h>
 # include <unistd.h>
+# include <string.h>
 
 # include "global.h"
 # include "rand.h"
@@ -40,6 +41,8 @@ int angle2;
 int main (int argc, char **argv)
 {
     int i;
+    int use_external_initial_population;
+    char initial_population_file[1024];
     FILE *fpt1;
     FILE *fpt2;
     FILE *fpt3;
@@ -60,11 +63,8 @@ int main (int argc, char **argv)
         exit(1);
     }
     seed = (double)atof(argv[1]);
-    if (seed<=0.0 || seed>=1.0)
-    {
-        printf("\n Entered seed value is wrong, seed value must be in (0,1) \n");
-        exit(1);
-    }
+    use_external_initial_population = 0;
+    initial_population_file[0] = '\0';
     fpt1 = fopen("initial_pop.out","w");
     fpt2 = fopen("final_pop.out","w");
     fpt3 = fopen("best_pop.out","w");
@@ -339,6 +339,24 @@ int main (int argc, char **argv)
             }
         }
     }
+    if (scanf("%1023s", initial_population_file) == 1)
+    {
+        if (strcmp(initial_population_file, "-")!=0 && strcmp(initial_population_file, "none")!=0 && strcmp(initial_population_file, "NONE")!=0)
+        {
+            use_external_initial_population = 1;
+        }
+    }
+    if (!use_external_initial_population && (seed<=0.0 || seed>=1.0))
+    {
+        printf("\n Entered seed value is wrong, seed value must be in (0,1) \n");
+        exit(1);
+    }
+    if (use_external_initial_population)
+    {
+        seed = 0.5;
+        printf("\n External initial population file detected (%s). Random seed input is ignored for initialization.\n",initial_population_file);
+        fprintf(fpt5,"\n External initial population file = %s",initial_population_file);
+    }
     printf("\n Input data successfully entered, now performing initialization \n");
     fprintf(fpt5,"\n Population size = %d",popsize);
     fprintf(fpt5,"\n Number of generations = %d",ngen);
@@ -412,10 +430,29 @@ int main (int argc, char **argv)
     archive_count = 0;
     member_id = 1;
     randomize();
-    initialize_pop (parent_pop);
+    if (use_external_initial_population)
+    {
+        if (ncon!=0)
+        {
+            printf("\n External initial population loading currently supports ncon=0 only.\n");
+            exit(1);
+        }
+        initialize_pop_from_csv (parent_pop, initial_population_file);
+    }
+    else
+    {
+        initialize_pop (parent_pop);
+    }
     printf("\n Initialization done, now performing first generation");
-    decode_pop(parent_pop);
-    evaluate_pop (parent_pop);
+    if (use_external_initial_population)
+    {
+        decode_pop(parent_pop);
+    }
+    else
+    {
+        decode_pop(parent_pop);
+        evaluate_pop (parent_pop);
+    }
     assign_rank_and_crowding_distance (parent_pop);
     report_pop (parent_pop, fpt1);
     fprintf(fpt4,"# gen = 1\n");

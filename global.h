@@ -98,6 +98,7 @@ void crowding_fill (population *mixed_pop, population *new_pop, int count, int f
 
 void initialize_pop (population *pop);
 void initialize_ind (individual *ind);
+void initialize_pop_from_csv (population *pop, const char *filename);
 
 void insert (list *node, int x);
 list* del (list *node);

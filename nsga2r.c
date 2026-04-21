@@ -400,21 +400,7 @@ int main (int argc, char **argv)
     fprintf(fpt2,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt3,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt4,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
-    fprintf(fpt_verbose,"# number of generations\n");
-    fprintf(fpt_verbose,"number of generations, ID");
-    for (i=0; i<(nreal+nbin); i++)
-    {
-        fprintf(fpt_verbose,", x%d",i+1);
-    }
-    for (i=0; i<nobj; i++)
-    {
-        fprintf(fpt_verbose,", f%d",i+1);
-    }
-    for (i=0; i<nobj; i++)
-    {
-        fprintf(fpt_verbose,", std_f%d",i+1);
-    }
-    fprintf(fpt_verbose,"\n");
+    fprintf(fpt_verbose,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
     nbinmut = 0;
     nrealmut = 0;
     nbincross = 0;

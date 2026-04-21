@@ -90,6 +90,29 @@ static void report_human_readable_feasible_individual (individual *ind, FILE *fp
     fprintf(fpt,"\n");
 }
 
+static void report_human_readable_archive_individual (individual *ind, FILE *fpt, int generation, int member_id)
+{
+    int j;
+    fprintf(fpt,"%d, %d",generation,member_id);
+    for (j=0; j<nbin; j++)
+    {
+        fprintf(fpt,", %.0f",clamp_value(round_to_nearest_integer(ind->xbin[j]), min_binvar[j], max_binvar[j]));
+    }
+    for (j=0; j<nreal; j++)
+    {
+        fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,ind->xreal[j]);
+    }
+    for (j=0; j<nobj; j++)
+    {
+        fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,get_report_objective_value(j, ind->obj[j]));
+    }
+    for (j=0; j<nobj; j++)
+    {
+        fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,ind->obj_std[j]);
+    }
+    fprintf(fpt,"\n");
+}
+
 /* Function to print the information of a population in a file */
 void report_pop (population *pop, FILE *fpt)
 {
@@ -198,7 +221,7 @@ void report_archive_feasible (population *pop, int size, FILE *fpt)
     }
     if (nobj==2 && nreal==1 && nbin==8)
     {
-        fprintf(fpt,"r1, r2, r3, r4, m1, m2, m3, m4, dh, Pt, Q, std_f1, std_f2\n");
+        fprintf(fpt,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
         for (i=0; i<size; i++)
         {
             int duplicate;
@@ -217,7 +240,9 @@ void report_archive_feasible (population *pop, int size, FILE *fpt)
             }
             if (!duplicate)
             {
-                report_human_readable_feasible_individual(&(pop->ind[i]), fpt);
+                int generation;
+                generation = (i/popsize) + 1;
+                report_human_readable_archive_individual(&(pop->ind[i]), fpt, generation, i+1);
             }
         }
         free(selected);
@@ -268,32 +293,10 @@ void report_archive_feasible (population *pop, int size, FILE *fpt)
 /* Function to print verbose generation level information */
 void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id)
 {
-    int i, j;
-    if (generation > 1)
-    {
-        fprintf(fpt,"\n");
-    }
-    fprintf(fpt,"#Gen %d\n",generation);
+    int i;
     for (i=0; i<popsize; i++)
     {
-        fprintf(fpt,"%d, %d",generation,*member_id);
-        for (j=0; j<nbin; j++)
-        {
-            fprintf(fpt,", %.0f",clamp_value(round_to_nearest_integer(pop->ind[i].xbin[j]), min_binvar[j], max_binvar[j]));
-        }
-        for (j=0; j<nreal; j++)
-        {
-            fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,pop->ind[i].xreal[j]);
-        }
-        for (j=0; j<nobj; j++)
-        {
-            fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,get_report_objective_value(j, pop->ind[i].obj[j]));
-        }
-        for (j=0; j<nobj; j++)
-        {
-            fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT,pop->ind[i].obj_std[j]);
-        }
-        fprintf(fpt,"\n");
+        report_human_readable_archive_individual(&(pop->ind[i]), fpt, generation, *member_id);
         (*member_id)++;
     }
     return;

@@ -45,7 +45,11 @@ static int same_reported_design_variables (individual *ind1, individual *ind2)
     }
     for (j=0; j<nreal; j++)
     {
-        if (fabs(ind1->xreal[j] - ind2->xreal[j]) > 1.0e-9)
+        double value1;
+        double value2;
+        value1 = floor(ind1->xreal[j] * 1.0e10 + 0.5) / 1.0e10;
+        value2 = floor(ind2->xreal[j] * 1.0e10 + 0.5) / 1.0e10;
+        if (value1 != value2)
         {
             return 0;
         }

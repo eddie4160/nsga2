@@ -61,20 +61,20 @@ static int is_feasible_nondominated_index (population *archive_pop, int size, in
     return 1;
 }
 
-static int extract_generation_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
+static int extract_cumulative_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
 {
     int i;
     int count;
-    int start;
+    int size;
     point *front;
-    start = generation_index * generation_size;
-    front = (point *)malloc(generation_size*sizeof(point));
+    size = (generation_index + 1) * generation_size;
+    front = (point *)malloc(size*sizeof(point));
     count = 0;
-    for (i=0; i<generation_size; i++)
+    for (i=0; i<size; i++)
     {
-        if (is_feasible_nondominated_index(archive_pop, start + generation_size, start + i))
+        if (is_feasible_nondominated_index(archive_pop, size, i))
         {
-            front[count].obj = archive_pop->ind[start+i].obj;
+            front[count].obj = archive_pop->ind[i].obj;
             count++;
         }
     }
@@ -260,36 +260,43 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     front_counts = (int *)calloc(window_size, sizeof(int));
     fronts = (point **)calloc(window_size, sizeof(point *));
     reference = (double *)malloc(nobj*sizeof(double));
-    for (g=0; g<nobj; g++)
     {
-        reference[g] = -INF;
+        int total_size;
+        int i;
+        total_size = generations * generation_size;
+        for (g=0; g<nobj; g++)
+        {
+            reference[g] = -INF;
+        }
+        for (i=0; i<total_size; i++)
+        {
+            if (archive_pop->ind[i].constr_violation != 0.0)
+            {
+                continue;
+            }
+            for (g=0; g<nobj; g++)
+            {
+                if (archive_pop->ind[i].obj[g] > reference[g])
+                {
+                    reference[g] = archive_pop->ind[i].obj[g];
+                }
+            }
+        }
+        for (g=0; g<nobj; g++)
+        {
+            if (reference[g] <= -INF/2.0)
+            {
+                reference[g] = 0.0;
+            }
+            reference[g] += REF_MARGIN;
+        }
     }
     for (g=start_generation; g<generations; g++)
     {
         int count;
-        int w;
         window_index = g - start_generation;
-        count = extract_generation_front(archive_pop, generation_size, g, &(fronts[window_index]));
+        count = extract_cumulative_front(archive_pop, generation_size, g, &(fronts[window_index]));
         front_counts[window_index] = count;
-        for (w=0; w<count; w++)
-        {
-            int m;
-            for (m=0; m<nobj; m++)
-            {
-                if (fronts[window_index][w].obj[m] > reference[m])
-                {
-                    reference[m] = fronts[window_index][w].obj[m];
-                }
-            }
-        }
-    }
-    for (g=0; g<nobj; g++)
-    {
-        if (reference[g] <= -INF/2.0)
-        {
-            reference[g] = 0.0;
-        }
-        reference[g] += REF_MARGIN;
     }
     for (g=start_generation; g<generations; g++)
     {

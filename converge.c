@@ -7,10 +7,7 @@
 # include "global.h"
 # include "rand.h"
 
-# define CONVERGENCE_WINDOW 20
 # define REF_MARGIN 1.0e-6
-# define STABLE_HV_EPS 1.0e-6
-# define STABLE_DELTA_EPS 1.0e-6
 
 typedef struct
 {
@@ -35,22 +32,45 @@ static int compare_point_obj0 (const void *a, const void *b)
     return 0;
 }
 
-static int extract_generation_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
+static int is_feasible_nondominated_index (population *archive_pop, int size, int index)
+{
+    int j;
+    individual *candidate;
+    candidate = &(archive_pop->ind[index]);
+    if (candidate->constr_violation != 0.0)
+    {
+        return 0;
+    }
+    for (j=0; j<size; j++)
+    {
+        if (j == index)
+        {
+            continue;
+        }
+        if (archive_pop->ind[j].constr_violation != 0.0)
+        {
+            continue;
+        }
+        if (check_dominance(&(archive_pop->ind[j]), candidate) == 1)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int extract_cumulative_front (population *archive_pop, int size, point **out_front)
 {
     int i;
     int count;
-    int start;
     point *front;
-    start = generation_index * generation_size;
-    front = (point *)malloc(generation_size*sizeof(point));
+    front = (point *)malloc(size*sizeof(point));
     count = 0;
-    for (i=0; i<generation_size; i++)
+    for (i=0; i<size; i++)
     {
-        individual *ind;
-        ind = &(archive_pop->ind[start+i]);
-        if (ind->rank == 1 && ind->constr_violation == 0.0)
+        if (is_feasible_nondominated_index(archive_pop, size, i))
         {
-            front[count].obj = ind->obj;
+            front[count].obj = archive_pop->ind[i].obj;
             count++;
         }
     }
@@ -184,6 +204,7 @@ static double compute_delta_dispersion (point *front, int count)
 void report_convergence_metrics (population *archive_pop, int generations, int generation_size, const char *filename)
 {
     int g;
+    int previous_count;
     double *hv_series;
     double *delta_series;
     FILE *fpt;
@@ -193,45 +214,36 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         printf("\n Could not open convergence output file: %s\n", filename);
         return;
     }
-    fprintf(fpt,"generation, front_size, HV, Delta, window_hv_range, window_delta_range, stable\n");
+    fprintf(fpt,"generation, cumulative_front_size, HV, Delta, hv_change, delta_change\n");
     hv_series = (double *)calloc(generations, sizeof(double));
     delta_series = (double *)calloc(generations, sizeof(double));
+    previous_count = 0;
     for (g=0; g<generations; g++)
     {
         point *front;
         int count;
-        int ws, we, w;
+        int cumulative_size;
+        int w;
         double *reference;
-        double hv_min;
-        double hv_max;
-        double d_min;
-        double d_max;
-        int stable;
-        count = extract_generation_front(archive_pop, generation_size, g, &front);
+        double hv_change;
+        double delta_change;
+        cumulative_size = (g+1) * generation_size;
+        count = extract_cumulative_front(archive_pop, cumulative_size, &front);
         reference = (double *)malloc(nobj*sizeof(double));
-        ws = (g - CONVERGENCE_WINDOW + 1 < 0) ? 0 : (g - CONVERGENCE_WINDOW + 1);
-        we = g;
         for (w=0; w<nobj; w++)
         {
             reference[w] = -INF;
         }
-        for (w=ws; w<=we; w++)
+        for (w=0; w<count; w++)
         {
-            point *wfront;
-            int wcount;
-            int i, m;
-            wcount = extract_generation_front(archive_pop, generation_size, w, &wfront);
-            for (i=0; i<wcount; i++)
+            int m;
+            for (m=0; m<nobj; m++)
             {
-                for (m=0; m<nobj; m++)
+                if (front[w].obj[m] > reference[m])
                 {
-                    if (wfront[i].obj[m] > reference[m])
-                    {
-                        reference[m] = wfront[i].obj[m];
-                    }
+                    reference[m] = front[w].obj[m];
                 }
             }
-            free(wfront);
         }
         for (w=0; w<nobj; w++)
         {
@@ -243,18 +255,19 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         }
         hv_series[g] = (nobj==2) ? compute_hypervolume_2d(front, count, reference) : 0.0;
         delta_series[g] = compute_delta_dispersion(front, count);
-        hv_min = hv_max = hv_series[ws];
-        d_min = d_max = delta_series[ws];
-        for (w=ws; w<=we; w++)
+        if (previous_count > 0)
         {
-            if (hv_series[w] < hv_min) hv_min = hv_series[w];
-            if (hv_series[w] > hv_max) hv_max = hv_series[w];
-            if (delta_series[w] < d_min) d_min = delta_series[w];
-            if (delta_series[w] > d_max) d_max = delta_series[w];
+            hv_change = ((double)(count - previous_count)) / (double)previous_count;
+            delta_change = hv_change;
         }
-        stable = (g - ws + 1 >= CONVERGENCE_WINDOW && (hv_max - hv_min) <= STABLE_HV_EPS && (d_max - d_min) <= STABLE_DELTA_EPS) ? 1 : 0;
-        fprintf(fpt,"%d, %d, " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", %d\n",
-                g+1, count, hv_series[g], delta_series[g], hv_max-hv_min, d_max-d_min, stable);
+        else
+        {
+            hv_change = 0.0;
+            delta_change = 0.0;
+        }
+        fprintf(fpt,"%d, %d, " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT "\n",
+                g+1, count, hv_series[g], delta_series[g], hv_change, delta_change);
+        previous_count = count;
         free(reference);
         free(front);
     }

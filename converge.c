@@ -7,7 +7,9 @@
 # include "global.h"
 # include "rand.h"
 
+# define CONVERGENCE_WINDOW 20
 # define REF_MARGIN 1.0e-6
+# define CHANGE_EPS 1.0e-12
 
 typedef struct
 {
@@ -59,18 +61,20 @@ static int is_feasible_nondominated_index (population *archive_pop, int size, in
     return 1;
 }
 
-static int extract_cumulative_front (population *archive_pop, int size, point **out_front)
+static int extract_generation_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
 {
     int i;
     int count;
+    int start;
     point *front;
-    front = (point *)malloc(size*sizeof(point));
+    start = generation_index * generation_size;
+    front = (point *)malloc(generation_size*sizeof(point));
     count = 0;
-    for (i=0; i<size; i++)
+    for (i=0; i<generation_size; i++)
     {
-        if (is_feasible_nondominated_index(archive_pop, size, i))
+        if (is_feasible_nondominated_index(archive_pop, start + generation_size, start + i))
         {
-            front[count].obj = archive_pop->ind[i].obj;
+            front[count].obj = archive_pop->ind[start+i].obj;
             count++;
         }
     }
@@ -117,96 +121,130 @@ static double compute_hypervolume_2d (point *front, int count, double *reference
 
 static double compute_delta_dispersion (point *front, int count)
 {
-    int i, m;
+    int i;
+    int m;
     int interior_count;
-    int *is_boundary;
-    double *distances;
+    int segment_count;
+    int boundary_count;
+    int *sorted_idx;
+    double *norm_obj;
+    double *segment_dist;
     double mean_distance;
     double dispersion;
+    double denom;
     if (count < 3)
     {
         return 0.0;
     }
-    is_boundary = (int *)calloc(count, sizeof(int));
-    distances = (double *)calloc(count, sizeof(double));
+    sorted_idx = (int *)malloc(count*sizeof(int));
+    for (i=0; i<count; i++)
+    {
+        sorted_idx[i] = i;
+    }
+    for (i=1; i<count; i++)
+    {
+        int key;
+        int j;
+        key = sorted_idx[i];
+        j = i - 1;
+        while (j>=0 && front[sorted_idx[j]].obj[0] > front[key].obj[0])
+        {
+            sorted_idx[j+1] = sorted_idx[j];
+            j--;
+        }
+        sorted_idx[j+1] = key;
+    }
+    norm_obj = (double *)malloc(count*nobj*sizeof(double));
     for (m=0; m<nobj; m++)
     {
-        int *indices;
         double fmin;
         double fmax;
-        indices = (int *)malloc(count*sizeof(int));
-        for (i=0; i<count; i++)
+        fmin = front[sorted_idx[0]].obj[m];
+        fmax = front[sorted_idx[count-1]].obj[m];
+        if (fabs(fmax - fmin) <= CHANGE_EPS)
         {
-            indices[i] = i;
-        }
-        /* Fallback: simple insertion sort for portability */
-        {
-            int j;
-            for (i=1; i<count; i++)
+            for (i=0; i<count; i++)
             {
-                int key;
-                key = indices[i];
-                j = i - 1;
-                while (j>=0 && front[indices[j]].obj[m] > front[key].obj[m])
-                {
-                    indices[j+1] = indices[j];
-                    j--;
-                }
-                indices[j+1] = key;
+                norm_obj[i*nobj + m] = 0.0;
             }
         }
-        fmin = front[indices[0]].obj[m];
-        fmax = front[indices[count-1]].obj[m];
-        is_boundary[indices[0]] = 1;
-        is_boundary[indices[count-1]] = 1;
-        if (fmax > fmin)
+        else
         {
-            for (i=1; i<count-1; i++)
+            denom = fmax - fmin;
+            for (i=0; i<count; i++)
             {
-                int idx;
-                idx = indices[i];
-                distances[idx] += (front[indices[i+1]].obj[m] - front[indices[i-1]].obj[m]) / (fmax - fmin);
+                norm_obj[i*nobj + m] = (front[sorted_idx[i]].obj[m] - fmin) / denom;
             }
         }
-        free(indices);
     }
-    interior_count = 0;
-    mean_distance = 0.0;
-    for (i=0; i<count; i++)
+    segment_count = count - 1;
+    segment_dist = (double *)calloc(segment_count, sizeof(double));
+    for (i=0; i<segment_count; i++)
     {
-        if (!is_boundary[i])
+        double d2;
+        d2 = 0.0;
+        for (m=0; m<nobj; m++)
         {
-            mean_distance += distances[i];
-            interior_count++;
+            double diff;
+            diff = norm_obj[(i+1)*nobj + m] - norm_obj[i*nobj + m];
+            d2 += diff * diff;
         }
+        segment_dist[i] = sqrt(d2);
     }
-    if (interior_count == 0)
+    boundary_count = 2;
+    if (segment_count <= boundary_count)
     {
-        free(is_boundary);
-        free(distances);
+        free(sorted_idx);
+        free(norm_obj);
+        free(segment_dist);
         return 0.0;
     }
-    mean_distance /= (double)interior_count;
-    dispersion = 0.0;
-    for (i=0; i<count; i++)
+    interior_count = segment_count - boundary_count;
+    mean_distance = 0.0;
+    for (i=1; i<segment_count-1; i++)
     {
-        if (!is_boundary[i])
-        {
-            dispersion += fabs(distances[i] - mean_distance);
-        }
+        mean_distance += segment_dist[i];
     }
-    dispersion /= (double)interior_count;
-    free(is_boundary);
-    free(distances);
+    mean_distance /= (double)interior_count;
+    if (mean_distance <= CHANGE_EPS)
+    {
+        free(sorted_idx);
+        free(norm_obj);
+        free(segment_dist);
+        return 0.0;
+    }
+    dispersion = 0.0;
+    for (i=1; i<segment_count-1; i++)
+    {
+        dispersion += fabs(segment_dist[i] - mean_distance);
+    }
+    dispersion /= ((double)interior_count * mean_distance);
+    free(sorted_idx);
+    free(norm_obj);
+    free(segment_dist);
     return dispersion;
+}
+
+static double compute_relative_change (double current, double previous)
+{
+    if (fabs(previous) <= CHANGE_EPS)
+    {
+        return 0.0;
+    }
+    return (current - previous) / previous;
 }
 
 void report_convergence_metrics (population *archive_pop, int generations, int generation_size, const char *filename)
 {
+    int start_generation;
+    int window_size;
+    int window_index;
     int g;
-    int previous_count;
     double *hv_series;
     double *delta_series;
+    int *front_counts;
+    point **fronts;
+    double *reference;
     FILE *fpt;
     fpt = fopen(filename, "w");
     if (fpt == NULL)
@@ -214,63 +252,72 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         printf("\n Could not open convergence output file: %s\n", filename);
         return;
     }
-    fprintf(fpt,"generation, cumulative_front_size, HV, Delta, hv_change, delta_change\n");
-    hv_series = (double *)calloc(generations, sizeof(double));
-    delta_series = (double *)calloc(generations, sizeof(double));
-    previous_count = 0;
-    for (g=0; g<generations; g++)
+    window_size = (generations < CONVERGENCE_WINDOW) ? generations : CONVERGENCE_WINDOW;
+    start_generation = generations - window_size;
+    fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
+    hv_series = (double *)calloc(window_size, sizeof(double));
+    delta_series = (double *)calloc(window_size, sizeof(double));
+    front_counts = (int *)calloc(window_size, sizeof(int));
+    fronts = (point **)calloc(window_size, sizeof(point *));
+    reference = (double *)malloc(nobj*sizeof(double));
+    for (g=0; g<nobj; g++)
     {
-        point *front;
+        reference[g] = -INF;
+    }
+    for (g=start_generation; g<generations; g++)
+    {
         int count;
-        int cumulative_size;
         int w;
-        double *reference;
-        double hv_change;
-        double delta_change;
-        cumulative_size = (g+1) * generation_size;
-        count = extract_cumulative_front(archive_pop, cumulative_size, &front);
-        reference = (double *)malloc(nobj*sizeof(double));
-        for (w=0; w<nobj; w++)
-        {
-            reference[w] = -INF;
-        }
+        window_index = g - start_generation;
+        count = extract_generation_front(archive_pop, generation_size, g, &(fronts[window_index]));
+        front_counts[window_index] = count;
         for (w=0; w<count; w++)
         {
             int m;
             for (m=0; m<nobj; m++)
             {
-                if (front[w].obj[m] > reference[m])
+                if (fronts[window_index][w].obj[m] > reference[m])
                 {
-                    reference[m] = front[w].obj[m];
+                    reference[m] = fronts[window_index][w].obj[m];
                 }
             }
         }
-        for (w=0; w<nobj; w++)
+    }
+    for (g=0; g<nobj; g++)
+    {
+        if (reference[g] <= -INF/2.0)
         {
-            if (reference[w] <= -INF/2.0)
-            {
-                reference[w] = 0.0;
-            }
-            reference[w] += REF_MARGIN;
+            reference[g] = 0.0;
         }
-        hv_series[g] = (nobj==2) ? compute_hypervolume_2d(front, count, reference) : 0.0;
-        delta_series[g] = compute_delta_dispersion(front, count);
-        if (previous_count > 0)
-        {
-            hv_change = ((double)(count - previous_count)) / (double)previous_count;
-            delta_change = hv_change;
-        }
-        else
+        reference[g] += REF_MARGIN;
+    }
+    for (g=start_generation; g<generations; g++)
+    {
+        double hv_change;
+        double delta_change;
+        window_index = g - start_generation;
+        hv_series[window_index] = (nobj==2) ? compute_hypervolume_2d(fronts[window_index], front_counts[window_index], reference) : 0.0;
+        delta_series[window_index] = compute_delta_dispersion(fronts[window_index], front_counts[window_index]);
+        if (window_index == 0)
         {
             hv_change = 0.0;
             delta_change = 0.0;
         }
+        else
+        {
+            hv_change = compute_relative_change(hv_series[window_index], hv_series[window_index-1]);
+            delta_change = compute_relative_change(delta_series[window_index], delta_series[window_index-1]);
+        }
         fprintf(fpt,"%d, %d, " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT "\n",
-                g+1, count, hv_series[g], delta_series[g], hv_change, delta_change);
-        previous_count = count;
-        free(reference);
-        free(front);
+                g+1, front_counts[window_index], hv_series[window_index], delta_series[window_index], hv_change, delta_change);
     }
+    for (g=0; g<window_size; g++)
+    {
+        free(fronts[g]);
+    }
+    free(reference);
+    free(fronts);
+    free(front_counts);
     free(hv_series);
     free(delta_series);
     fclose(fpt);

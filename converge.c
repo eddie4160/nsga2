@@ -17,6 +17,56 @@ typedef struct
 }
 point;
 
+static double round_to_nearest_integer (double value)
+{
+    if (value >= 0.0)
+    {
+        return floor(value + 0.5);
+    }
+    return ceil(value - 0.5);
+}
+
+static double clamp_value (double value, double lower, double upper)
+{
+    if (value < lower)
+    {
+        return lower;
+    }
+    if (value > upper)
+    {
+        return upper;
+    }
+    return value;
+}
+
+static int same_reported_design_variables_for_convergence (individual *ind1, individual *ind2)
+{
+    int j;
+    for (j=0; j<nbin; j++)
+    {
+        double value1;
+        double value2;
+        value1 = clamp_value(round_to_nearest_integer(ind1->xbin[j]), min_binvar[j], max_binvar[j]);
+        value2 = clamp_value(round_to_nearest_integer(ind2->xbin[j]), min_binvar[j], max_binvar[j]);
+        if (value1 != value2)
+        {
+            return 0;
+        }
+    }
+    for (j=0; j<nreal; j++)
+    {
+        double value1;
+        double value2;
+        value1 = floor(ind1->xreal[j] * 1.0e10 + 0.5) / 1.0e10;
+        value2 = floor(ind2->xreal[j] * 1.0e10 + 0.5) / 1.0e10;
+        if (value1 != value2)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static int compare_point_obj0 (const void *a, const void *b)
 {
     point *pa;
@@ -64,20 +114,45 @@ static int is_feasible_nondominated_index (population *archive_pop, int size, in
 static int extract_cumulative_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
 {
     int i;
+    int j;
     int count;
     int size;
     point *front;
+    int *selected;
     size = (generation_index + 1) * generation_size;
     front = (point *)malloc(size*sizeof(point));
+    selected = (int *)calloc(size, sizeof(int));
     count = 0;
     for (i=0; i<size; i++)
     {
         if (is_feasible_nondominated_index(archive_pop, size, i))
         {
+            selected[i] = 1;
+        }
+    }
+    for (i=0; i<size; i++)
+    {
+        int duplicate;
+        if (!selected[i])
+        {
+            continue;
+        }
+        duplicate = 0;
+        for (j=0; j<i; j++)
+        {
+            if (selected[j] && same_reported_design_variables_for_convergence(&(archive_pop->ind[j]), &(archive_pop->ind[i])))
+            {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (!duplicate)
+        {
             front[count].obj = archive_pop->ind[i].obj;
             count++;
         }
     }
+    free(selected);
     *out_front = front;
     return count;
 }
@@ -254,7 +329,6 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     }
     window_size = (generations < CONVERGENCE_WINDOW) ? generations : CONVERGENCE_WINDOW;
     start_generation = generations - window_size;
-    fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
     hv_series = (double *)calloc(window_size, sizeof(double));
     delta_series = (double *)calloc(window_size, sizeof(double));
     front_counts = (int *)calloc(window_size, sizeof(int));
@@ -291,6 +365,13 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
             reference[g] += REF_MARGIN;
         }
     }
+    fprintf(fpt,"reference_point");
+    for (g=0; g<nobj; g++)
+    {
+        fprintf(fpt,", " OUTPUT_DOUBLE_FORMAT, reference[g]);
+    }
+    fprintf(fpt,"\n");
+    fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
     for (g=start_generation; g<generations; g++)
     {
         int count;

@@ -84,63 +84,80 @@ static int compare_point_obj0 (const void *a, const void *b)
     return 0;
 }
 
-static int is_feasible_nondominated_index (population *archive_pop, int size, int index)
+static int compare_int_asc (const void *a, const void *b)
 {
-    int j;
-    individual *candidate;
-    candidate = &(archive_pop->ind[index]);
-    if (candidate->constr_violation != 0.0)
+    int ia;
+    int ib;
+    ia = *((int *)a);
+    ib = *((int *)b);
+    if (ia < ib)
     {
-        return 0;
+        return -1;
     }
-    for (j=0; j<size; j++)
+    if (ia > ib)
     {
-        if (j == index)
-        {
-            continue;
-        }
-        if (archive_pop->ind[j].constr_violation != 0.0)
-        {
-            continue;
-        }
-        if (check_dominance(&(archive_pop->ind[j]), candidate) == 1)
-        {
-            return 0;
-        }
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
-static int extract_cumulative_front (population *archive_pop, int generation_size, int generation_index, point **out_front)
+static void add_candidate_to_nondominated_set (population *archive_pop, int candidate_index, int *nd_indices, int *nd_count)
+{
+    int j;
+    int write_index;
+    if (archive_pop->ind[candidate_index].constr_violation != 0.0)
+    {
+        return;
+    }
+    for (j=0; j<(*nd_count); j++)
+    {
+        if (check_dominance(&(archive_pop->ind[nd_indices[j]]), &(archive_pop->ind[candidate_index])) == 1)
+        {
+            return;
+        }
+    }
+    write_index = 0;
+    for (j=0; j<(*nd_count); j++)
+    {
+        if (check_dominance(&(archive_pop->ind[candidate_index]), &(archive_pop->ind[nd_indices[j]])) == 1)
+        {
+            continue;
+        }
+        nd_indices[write_index] = nd_indices[j];
+        write_index++;
+    }
+    *nd_count = write_index;
+    nd_indices[*nd_count] = candidate_index;
+    (*nd_count)++;
+}
+
+static int snapshot_deduplicated_front (population *archive_pop, int *nd_indices, int nd_count, point **out_front)
 {
     int i;
     int j;
     int count;
-    int size;
+    int duplicate;
+    int *sorted_nd;
     point *front;
-    int *selected;
-    size = (generation_index + 1) * generation_size;
-    front = (point *)malloc(size*sizeof(point));
-    selected = (int *)calloc(size, sizeof(int));
-    count = 0;
-    for (i=0; i<size; i++)
+    if (nd_count <= 0)
     {
-        if (is_feasible_nondominated_index(archive_pop, size, i))
-        {
-            selected[i] = 1;
-        }
+        *out_front = (point *)malloc(sizeof(point));
+        return 0;
     }
-    for (i=0; i<size; i++)
+    sorted_nd = (int *)malloc(nd_count*sizeof(int));
+    front = (point *)malloc(nd_count*sizeof(point));
+    for (i=0; i<nd_count; i++)
     {
-        int duplicate;
-        if (!selected[i])
-        {
-            continue;
-        }
+        sorted_nd[i] = nd_indices[i];
+    }
+    qsort(sorted_nd, nd_count, sizeof(int), compare_int_asc);
+    count = 0;
+    for (i=0; i<nd_count; i++)
+    {
         duplicate = 0;
         for (j=0; j<i; j++)
         {
-            if (selected[j] && same_reported_design_variables_for_convergence(&(archive_pop->ind[j]), &(archive_pop->ind[i])))
+            if (same_reported_design_variables_for_convergence(&(archive_pop->ind[sorted_nd[j]]), &(archive_pop->ind[sorted_nd[i]])))
             {
                 duplicate = 1;
                 break;
@@ -148,11 +165,11 @@ static int extract_cumulative_front (population *archive_pop, int generation_siz
         }
         if (!duplicate)
         {
-            front[count].obj = archive_pop->ind[i].obj;
+            front[count].obj = archive_pop->ind[sorted_nd[i]].obj;
             count++;
         }
     }
-    free(selected);
+    free(sorted_nd);
     *out_front = front;
     return count;
 }
@@ -319,6 +336,8 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     double *delta_series;
     int *front_counts;
     point **fronts;
+    int *nd_indices;
+    int nd_count;
     double *reference;
     FILE *fpt;
     fpt = fopen(filename, "w");
@@ -333,6 +352,8 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     delta_series = (double *)calloc(window_size, sizeof(double));
     front_counts = (int *)calloc(window_size, sizeof(int));
     fronts = (point **)calloc(window_size, sizeof(point *));
+    nd_indices = (int *)malloc(generations*generation_size*sizeof(int));
+    nd_count = 0;
     reference = (double *)malloc(nobj*sizeof(double));
     {
         int total_size;
@@ -372,12 +393,20 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     }
     fprintf(fpt,"\n");
     fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
-    for (g=start_generation; g<generations; g++)
+    for (g=0; g<generations; g++)
     {
-        int count;
-        window_index = g - start_generation;
-        count = extract_cumulative_front(archive_pop, generation_size, g, &(fronts[window_index]));
-        front_counts[window_index] = count;
+        int i;
+        for (i=0; i<generation_size; i++)
+        {
+            int candidate_index;
+            candidate_index = g*generation_size + i;
+            add_candidate_to_nondominated_set(archive_pop, candidate_index, nd_indices, &nd_count);
+        }
+        if (g >= start_generation)
+        {
+            window_index = g - start_generation;
+            front_counts[window_index] = snapshot_deduplicated_front(archive_pop, nd_indices, nd_count, &(fronts[window_index]));
+        }
     }
     for (g=start_generation; g<generations; g++)
     {
@@ -404,6 +433,7 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         free(fronts[g]);
     }
     free(reference);
+    free(nd_indices);
     free(fronts);
     free(front_counts);
     free(hv_series);

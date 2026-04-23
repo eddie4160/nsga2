@@ -484,6 +484,7 @@ int main (int argc, char **argv)
     report_pop(parent_pop,fpt2);
     report_feasible(parent_pop,fpt3);
     report_archive_feasible(archive_pop,archive_count,fpt6);
+    report_convergence_metrics(archive_pop,ngen,popsize,"converge.out");
     if (nreal!=0)
     {
         fprintf(fpt5,"\n Number of crossover of real variable = %d",nrealcross);

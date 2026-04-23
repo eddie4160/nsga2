@@ -121,6 +121,7 @@ void report_feasible (population *pop, FILE *fpt);
 void report_archive_feasible (population *pop, int size, FILE *fpt);
 void report_ind (individual *ind, FILE *fpt);
 void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id);
+void report_convergence_metrics (population *archive_pop, int generations, int generation_size, const char *filename);
 
 void quicksort_front_obj(population *pop, int objcount, int obj_array[], int obj_array_size);
 void q_sort_front_obj(population *pop, int objcount, int obj_array[], int left, int right);

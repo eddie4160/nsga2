@@ -294,9 +294,13 @@ static void report_verbose_style_archive_individual (individual *ind, FILE *fpt,
     fprintf(fpt,"\n");
 }
 
-static void write_cumulative_pareto_front_verbose (population *archive_pop, int generation_size, point *front, int count, const char *filename)
+static void write_incremental_cumulative_pareto_verbose (population *archive_pop, point **fronts, int *front_counts, int generations, int generation_size, const char *filename)
 {
+    int g;
     int i;
+    int member_id;
+    int seen_count;
+    int *seen_indices;
     FILE *fpt;
     fpt = fopen(filename, "w");
     if (fpt == NULL)
@@ -305,12 +309,36 @@ static void write_cumulative_pareto_front_verbose (population *archive_pop, int 
         return;
     }
     fprintf(fpt,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
-    for (i=0; i<count; i++)
+    seen_indices = (int *)malloc(generations*generation_size*sizeof(int));
+    seen_count = 0;
+    member_id = 1;
+    for (g=0; g<generations; g++)
     {
-        int generation;
-        generation = (front[i].index / generation_size) + 1;
-        report_verbose_style_archive_individual(&(archive_pop->ind[front[i].index]), fpt, generation, i+1);
+        for (i=0; i<front_counts[g]; i++)
+        {
+            int j;
+            int is_new;
+            int idx;
+            idx = fronts[g][i].index;
+            is_new = 1;
+            for (j=0; j<seen_count; j++)
+            {
+                if (same_reported_design_variables_for_convergence(&(archive_pop->ind[seen_indices[j]]), &(archive_pop->ind[idx])))
+                {
+                    is_new = 0;
+                    break;
+                }
+            }
+            if (is_new)
+            {
+                seen_indices[seen_count] = idx;
+                seen_count++;
+                report_verbose_style_archive_individual(&(archive_pop->ind[idx]), fpt, g+1, member_id);
+                member_id++;
+            }
+        }
     }
+    free(seen_indices);
     fclose(fpt);
 }
 
@@ -544,7 +572,7 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
             printf("[converge] archive update progress: %d/%d generations processed (phase %.2fs)\n", g+1, generations, elapsed_seconds);
         }
     }
-    write_cumulative_pareto_front_verbose(archive_pop, generation_size, fronts[generations-1], front_counts[generations-1], "cumulative_pareto_verbose.txt");
+    write_incremental_cumulative_pareto_verbose(archive_pop, fronts, front_counts, generations, generation_size, "cumulative_pareto_verbose.txt");
     phase_clock = clock();
     for (g=0; g<generations; g++)
     {

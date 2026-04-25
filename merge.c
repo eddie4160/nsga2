@@ -50,6 +50,7 @@ void copy_ind (individual *ind1, individual *ind2)
     for (i=0; i<nobj; i++)
     {
         ind2->obj[i] = ind1->obj[i];
+        ind2->obj_std[i] = ind1->obj_std[i];
     }
     if (ncon!=0)
     {

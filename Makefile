@@ -2,14 +2,15 @@
 CC=gcc
 LD=gcc
 RM=rm -f
-CFLAGS=-Wall -ansi -pedantic -g
+CFLAGS=-Wall -pedantic -g -std=gnu99
+PY_CFLAGS:=$(shell python3-config --includes)
+PY_LDFLAGS:=$(shell python3-config --embed --ldflags)
 OBJS:=$(patsubst %.c,%.o,$(wildcard *.c))
 MAIN=nsga2r
 all:$(MAIN)
 $(MAIN):$(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) -o $(MAIN) -lm
+	$(LD) $(LDFLAGS) $(OBJS) -o $(MAIN) -lm $(PY_LDFLAGS)
 %.o: %.c global.h rand.h
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(PY_CFLAGS) -c $<
 clean:
 	$(RM) $(OBJS)
-

@@ -8,6 +8,7 @@
 # define E  2.71828182845905
 # define PI 3.14159265358979
 # define GNUPLOT_COMMAND "gnuplot -persist"
+# define OUTPUT_DOUBLE_FORMAT "%.10f"
 
 typedef struct
 {
@@ -17,6 +18,7 @@ typedef struct
     int **gene;
     double *xbin;
     double *obj;
+    double *obj_std;
     double *constr;
     double crowd_dist;
 }
@@ -96,6 +98,7 @@ void crowding_fill (population *mixed_pop, population *new_pop, int count, int f
 
 void initialize_pop (population *pop);
 void initialize_ind (individual *ind);
+void initialize_pop_from_csv (population *pop, const char *filename);
 
 void insert (list *node, int x);
 list* del (list *node);
@@ -108,13 +111,17 @@ void mutation_ind (individual *ind);
 void bin_mutate_ind (individual *ind);
 void real_mutate_ind (individual *ind);
 
-void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *constr);
+void test_problem (double *xreal, double *xbin, int **gene, double *obj, double *obj_std, double *constr);
+double get_report_objective_value (int objective_index, double objective_value);
 
 void assign_rank_and_crowding_distance (population *new_pop);
 
 void report_pop (population *pop, FILE *fpt);
 void report_feasible (population *pop, FILE *fpt);
+void report_archive_feasible (population *pop, int size, FILE *fpt);
 void report_ind (individual *ind, FILE *fpt);
+void report_verbose_generation (population *pop, FILE *fpt, int generation, int *member_id);
+void report_convergence_metrics (population *archive_pop, int generations, int generation_size, const char *filename);
 
 void quicksort_front_obj(population *pop, int objcount, int obj_array[], int obj_array_size);
 void q_sort_front_obj(population *pop, int objcount, int obj_array[], int left, int right);

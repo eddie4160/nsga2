@@ -22,7 +22,7 @@ void evaluate_pop (population *pop)
 void evaluate_ind (individual *ind)
 {
     int j;
-    test_problem (ind->xreal, ind->xbin, ind->gene, ind->obj, ind->constr);
+    test_problem (ind->xreal, ind->xbin, ind->gene, ind->obj, ind->obj_std, ind->constr);
     if (ncon==0)
     {
         ind->constr_violation = 0.0;

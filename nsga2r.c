@@ -4,6 +4,7 @@
 # include <stdlib.h>
 # include <math.h>
 # include <unistd.h>
+# include <string.h>
 
 # include "global.h"
 # include "rand.h"
@@ -40,36 +41,43 @@ int angle2;
 int main (int argc, char **argv)
 {
     int i;
+    int use_external_initial_population;
+    char initial_population_file[1024];
     FILE *fpt1;
     FILE *fpt2;
     FILE *fpt3;
     FILE *fpt4;
     FILE *fpt5;
+    FILE *fpt6;
+    FILE *fpt_verbose;
     FILE *gp;
     population *parent_pop;
     population *child_pop;
     population *mixed_pop;
+    population *archive_pop;
+    int archive_count;
+    int member_id;
     if (argc<2)
     {
         printf("\n Usage ./nsga2r random_seed \n");
         exit(1);
     }
     seed = (double)atof(argv[1]);
-    if (seed<=0.0 || seed>=1.0)
-    {
-        printf("\n Entered seed value is wrong, seed value must be in (0,1) \n");
-        exit(1);
-    }
+    use_external_initial_population = 0;
+    initial_population_file[0] = '\0';
     fpt1 = fopen("initial_pop.out","w");
     fpt2 = fopen("final_pop.out","w");
     fpt3 = fopen("best_pop.out","w");
     fpt4 = fopen("all_pop.out","w");
     fpt5 = fopen("params.out","w");
+    fpt6 = fopen("pareto_all_pop.out","w");
+    fpt_verbose = fopen("verbose.txt","w");
     fprintf(fpt1,"# This file contains the data of initial population\n");
     fprintf(fpt2,"# This file contains the data of final population\n");
     fprintf(fpt3,"# This file contains the data of final feasible population (if found)\n");
     fprintf(fpt4,"# This file contains the data of all generations\n");
     fprintf(fpt5,"# This file contains information about inputs as read by the program\n");
+    fprintf(fpt6,"# This file contains the feasible non-dominated solutions across all stored populations\n");
     printf("\n Enter the problem relevant and algorithm relevant parameters ... ");
     printf("\n Enter the population size (a multiple of 4) : ");
     scanf("%d",&popsize);
@@ -87,6 +95,20 @@ int main (int argc, char **argv)
         printf("\n Wrong nuber of generations entered, hence exiting \n");
         exit (1);
     }
+    fprintf(fpt1,"# population size = %d\n",popsize);
+    fprintf(fpt1,"# number of generations = %d\n",ngen);
+    fprintf(fpt2,"# population size = %d\n",popsize);
+    fprintf(fpt2,"# number of generations = %d\n",ngen);
+    fprintf(fpt3,"# population size = %d\n",popsize);
+    fprintf(fpt3,"# number of generations = %d\n",ngen);
+    fprintf(fpt4,"# population size = %d\n",popsize);
+    fprintf(fpt4,"# number of generations = %d\n",ngen);
+    fprintf(fpt5,"# population size = %d\n",popsize);
+    fprintf(fpt5,"# number of generations = %d\n",ngen);
+    fprintf(fpt6,"# population size = %d\n",popsize);
+    fprintf(fpt6,"# number of generations = %d\n",ngen);
+    fprintf(fpt_verbose,"# population size = %d\n",popsize);
+    fprintf(fpt_verbose,"# number of generations = %d\n",ngen);
     printf("\n Enter the number of objectives : ");
     scanf("%d",&nobj);
     if (nobj<1)
@@ -317,6 +339,24 @@ int main (int argc, char **argv)
             }
         }
     }
+    if (scanf("%1023s", initial_population_file) == 1)
+    {
+        if (strcmp(initial_population_file, "-")!=0 && strcmp(initial_population_file, "none")!=0 && strcmp(initial_population_file, "NONE")!=0)
+        {
+            use_external_initial_population = 1;
+        }
+    }
+    if (!use_external_initial_population && (seed<=0.0 || seed>=1.0))
+    {
+        printf("\n Entered seed value is wrong, seed value must be in (0,1) \n");
+        exit(1);
+    }
+    if (use_external_initial_population)
+    {
+        seed = 0.5;
+        printf("\n External initial population file detected (%s). Random seed input is ignored for initialization.\n",initial_population_file);
+        fprintf(fpt5,"\n External initial population file = %s",initial_population_file);
+    }
     printf("\n Input data successfully entered, now performing initialization \n");
     fprintf(fpt5,"\n Population size = %d",popsize);
     fprintf(fpt5,"\n Number of generations = %d",ngen);
@@ -327,13 +367,13 @@ int main (int argc, char **argv)
     {
         for (i=0; i<nreal; i++)
         {
-            fprintf(fpt5,"\n Lower limit of real variable %d = %e",i+1,min_realvar[i]);
-            fprintf(fpt5,"\n Upper limit of real variable %d = %e",i+1,max_realvar[i]);
+            fprintf(fpt5,"\n Lower limit of real variable %d = " OUTPUT_DOUBLE_FORMAT,i+1,min_realvar[i]);
+            fprintf(fpt5,"\n Upper limit of real variable %d = " OUTPUT_DOUBLE_FORMAT,i+1,max_realvar[i]);
         }
-        fprintf(fpt5,"\n Probability of crossover of real variable = %e",pcross_real);
-        fprintf(fpt5,"\n Probability of mutation of real variable = %e",pmut_real);
-        fprintf(fpt5,"\n Distribution index for crossover = %e",eta_c);
-        fprintf(fpt5,"\n Distribution index for mutation = %e",eta_m);
+        fprintf(fpt5,"\n Probability of crossover of real variable = " OUTPUT_DOUBLE_FORMAT,pcross_real);
+        fprintf(fpt5,"\n Probability of mutation of real variable = " OUTPUT_DOUBLE_FORMAT,pmut_real);
+        fprintf(fpt5,"\n Distribution index for crossover = " OUTPUT_DOUBLE_FORMAT,eta_c);
+        fprintf(fpt5,"\n Distribution index for mutation = " OUTPUT_DOUBLE_FORMAT,eta_m);
     }
     fprintf(fpt5,"\n Number of binary variables = %d",nbin);
     if (nbin!=0)
@@ -341,13 +381,13 @@ int main (int argc, char **argv)
         for (i=0; i<nbin; i++)
         {
             fprintf(fpt5,"\n Number of bits for binary variable %d = %d",i+1,nbits[i]);
-            fprintf(fpt5,"\n Lower limit of binary variable %d = %e",i+1,min_binvar[i]);
-            fprintf(fpt5,"\n Upper limit of binary variable %d = %e",i+1,max_binvar[i]);
+            fprintf(fpt5,"\n Lower limit of binary variable %d = " OUTPUT_DOUBLE_FORMAT,i+1,min_binvar[i]);
+            fprintf(fpt5,"\n Upper limit of binary variable %d = " OUTPUT_DOUBLE_FORMAT,i+1,max_binvar[i]);
         }
-        fprintf(fpt5,"\n Probability of crossover of binary variable = %e",pcross_bin);
-        fprintf(fpt5,"\n Probability of mutation of binary variable = %e",pmut_bin);
+        fprintf(fpt5,"\n Probability of crossover of binary variable = " OUTPUT_DOUBLE_FORMAT,pcross_bin);
+        fprintf(fpt5,"\n Probability of mutation of binary variable = " OUTPUT_DOUBLE_FORMAT,pmut_bin);
     }
-    fprintf(fpt5,"\n Seed for random number generator = %e",seed);
+    fprintf(fpt5,"\n Seed for random number generator = " OUTPUT_DOUBLE_FORMAT,seed);
     bitlength = 0;
     if (nbin!=0)
     {
@@ -360,6 +400,7 @@ int main (int argc, char **argv)
     fprintf(fpt2,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt3,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
     fprintf(fpt4,"# of objectives = %d, # of constraints = %d, # of real_var = %d, # of bits of bin_var = %d, constr_violation, rank, crowding_distance\n",nobj,ncon,nreal,bitlength);
+    fprintf(fpt_verbose,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
     nbinmut = 0;
     nrealmut = 0;
     nbincross = 0;
@@ -367,18 +408,47 @@ int main (int argc, char **argv)
     parent_pop = (population *)malloc(sizeof(population));
     child_pop = (population *)malloc(sizeof(population));
     mixed_pop = (population *)malloc(sizeof(population));
+    archive_pop = (population *)malloc(sizeof(population));
     allocate_memory_pop (parent_pop, popsize);
     allocate_memory_pop (child_pop, popsize);
     allocate_memory_pop (mixed_pop, 2*popsize);
+    allocate_memory_pop (archive_pop, popsize*ngen);
+    archive_count = 0;
+    member_id = 1;
     randomize();
-    initialize_pop (parent_pop);
+    if (use_external_initial_population)
+    {
+        if (ncon!=0)
+        {
+            printf("\n External initial population loading currently supports ncon=0 only.\n");
+            exit(1);
+        }
+        initialize_pop_from_csv (parent_pop, initial_population_file);
+    }
+    else
+    {
+        initialize_pop (parent_pop);
+    }
     printf("\n Initialization done, now performing first generation");
-    decode_pop(parent_pop);
-    evaluate_pop (parent_pop);
+    if (use_external_initial_population)
+    {
+        decode_pop(parent_pop);
+    }
+    else
+    {
+        decode_pop(parent_pop);
+        evaluate_pop (parent_pop);
+    }
     assign_rank_and_crowding_distance (parent_pop);
     report_pop (parent_pop, fpt1);
     fprintf(fpt4,"# gen = 1\n");
     report_pop(parent_pop,fpt4);
+    report_verbose_generation(parent_pop,fpt_verbose,1,&member_id);
+    for (i=0; i<popsize; i++)
+    {
+        copy_ind(&(parent_pop->ind[i]), &(archive_pop->ind[archive_count]));
+        archive_count++;
+    }
     printf("\n gen = 1");
     fflush(stdout);
     if (choice!=0)    onthefly_display (parent_pop,gp,1);
@@ -400,6 +470,12 @@ int main (int argc, char **argv)
         generations is not desired, it will speed up the execution */
         fprintf(fpt4,"# gen = %d\n",i);
         report_pop(parent_pop,fpt4);
+        report_verbose_generation(parent_pop,fpt_verbose,i,&member_id);
+        for (int archive_index=0; archive_index<popsize; archive_index++)
+        {
+            copy_ind(&(parent_pop->ind[archive_index]), &(archive_pop->ind[archive_count]));
+            archive_count++;
+        }
         fflush(fpt4);
         if (choice!=0)    onthefly_display (parent_pop,gp,i);
         printf("\n gen = %d",i);
@@ -407,6 +483,8 @@ int main (int argc, char **argv)
     printf("\n Generations finished, now reporting solutions");
     report_pop(parent_pop,fpt2);
     report_feasible(parent_pop,fpt3);
+    report_archive_feasible(archive_pop,archive_count,fpt6);
+    report_convergence_metrics(archive_pop,ngen,popsize,"converge.out");
     if (nreal!=0)
     {
         fprintf(fpt5,"\n Number of crossover of real variable = %d",nrealcross);
@@ -423,11 +501,15 @@ int main (int argc, char **argv)
     fflush(fpt3);
     fflush(fpt4);
     fflush(fpt5);
+    fflush(fpt6);
+    fflush(fpt_verbose);
     fclose(fpt1);
     fclose(fpt2);
     fclose(fpt3);
     fclose(fpt4);
     fclose(fpt5);
+    fclose(fpt6);
+    fclose(fpt_verbose);
     if (choice!=0)
     {
         pclose(gp);
@@ -446,9 +528,11 @@ int main (int argc, char **argv)
     deallocate_memory_pop (parent_pop, popsize);
     deallocate_memory_pop (child_pop, popsize);
     deallocate_memory_pop (mixed_pop, 2*popsize);
+    deallocate_memory_pop (archive_pop, popsize*ngen);
     free (parent_pop);
     free (child_pop);
     free (mixed_pop);
+    free (archive_pop);
     printf("\n Routine successfully exited \n");
     return (0);
 }

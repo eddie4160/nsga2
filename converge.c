@@ -8,7 +8,6 @@
 # include "global.h"
 # include "rand.h"
 
-# define CONVERGENCE_WINDOW 20
 # define REF_MARGIN 1.0e-6
 # define CHANGE_EPS 1.0e-12
 
@@ -342,9 +341,6 @@ static double compute_relative_change (double current, double previous)
 
 void report_convergence_metrics (population *archive_pop, int generations, int generation_size, const char *filename)
 {
-    int start_generation;
-    int window_size;
-    int window_index;
     int g;
     double *hv_series;
     double *delta_series;
@@ -364,12 +360,10 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         printf("\n Could not open convergence output file: %s\n", filename);
         return;
     }
-    window_size = (generations < CONVERGENCE_WINDOW) ? generations : CONVERGENCE_WINDOW;
-    start_generation = generations - window_size;
-    hv_series = (double *)calloc(window_size, sizeof(double));
-    delta_series = (double *)calloc(window_size, sizeof(double));
-    front_counts = (int *)calloc(window_size, sizeof(int));
-    fronts = (point **)calloc(window_size, sizeof(point *));
+    hv_series = (double *)calloc(generations, sizeof(double));
+    delta_series = (double *)calloc(generations, sizeof(double));
+    front_counts = (int *)calloc(generations, sizeof(int));
+    fronts = (point **)calloc(generations, sizeof(point *));
     nd_indices = (int *)malloc(generations*generation_size*sizeof(int));
     nd_count = 0;
     reference = (double *)malloc(nobj*sizeof(double));
@@ -411,16 +405,12 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     }
     fprintf(fpt,"\n");
     fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
-    printf("\n[converge] report_convergence_metrics started: generations=%d, window=%d\n", generations, window_size);
+    printf("\n[converge] report_convergence_metrics started: generations=%d\n", generations);
     phase_clock = clock();
     for (g=0; g<generations; g++)
     {
         update_running_pareto_archive_for_generation(archive_pop, generation_size, g, nd_indices, &nd_count);
-        if (g >= start_generation)
-        {
-            window_index = g - start_generation;
-            front_counts[window_index] = snapshot_deduplicated_front(archive_pop, nd_indices, nd_count, &(fronts[window_index]));
-        }
+        front_counts[g] = snapshot_deduplicated_front(archive_pop, nd_indices, nd_count, &(fronts[g]));
         if ((g+1) % 10 == 0 || g == generations-1)
         {
             elapsed_seconds = ((double)(clock() - phase_clock)) / (double)CLOCKS_PER_SEC;
@@ -428,32 +418,31 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         }
     }
     phase_clock = clock();
-    for (g=start_generation; g<generations; g++)
+    for (g=0; g<generations; g++)
     {
         double hv_change;
         double delta_change;
-        window_index = g - start_generation;
-        hv_series[window_index] = (nobj==2) ? compute_hypervolume_2d(fronts[window_index], front_counts[window_index], reference) : 0.0;
-        delta_series[window_index] = compute_delta_dispersion(fronts[window_index], front_counts[window_index]);
-        if (window_index == 0)
+        hv_series[g] = (nobj==2) ? compute_hypervolume_2d(fronts[g], front_counts[g], reference) : 0.0;
+        delta_series[g] = compute_delta_dispersion(fronts[g], front_counts[g]);
+        if (g == 0)
         {
             hv_change = 0.0;
             delta_change = 0.0;
         }
         else
         {
-            hv_change = compute_relative_change(hv_series[window_index], hv_series[window_index-1]);
-            delta_change = compute_relative_change(delta_series[window_index], delta_series[window_index-1]);
+            hv_change = compute_relative_change(hv_series[g], hv_series[g-1]);
+            delta_change = compute_relative_change(delta_series[g], delta_series[g-1]);
         }
         fprintf(fpt,"%d, %d, " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT "\n",
-                g+1, front_counts[window_index], hv_series[window_index], delta_series[window_index], hv_change, delta_change);
-        if ((window_index+1) % 10 == 0 || g == generations-1)
+                g+1, front_counts[g], hv_series[g], delta_series[g], hv_change, delta_change);
+        if ((g+1) % 10 == 0 || g == generations-1)
         {
             elapsed_seconds = ((double)(clock() - phase_clock)) / (double)CLOCKS_PER_SEC;
-            printf("[converge] metric write progress: %d/%d window generations processed (phase %.2fs)\n", window_index+1, window_size, elapsed_seconds);
+            printf("[converge] metric write progress: %d/%d generations processed (phase %.2fs)\n", g+1, generations, elapsed_seconds);
         }
     }
-    for (g=0; g<window_size; g++)
+    for (g=0; g<generations; g++)
     {
         free(fronts[g]);
     }

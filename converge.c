@@ -298,7 +298,6 @@ static void write_incremental_cumulative_pareto_verbose (population *archive_pop
 {
     int g;
     int i;
-    int member_id;
     int seen_count;
     int *seen_indices;
     FILE *fpt;
@@ -311,7 +310,6 @@ static void write_incremental_cumulative_pareto_verbose (population *archive_pop
     fprintf(fpt,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
     seen_indices = (int *)malloc(generations*generation_size*sizeof(int));
     seen_count = 0;
-    member_id = 1;
     for (g=0; g<generations; g++)
     {
         for (i=0; i<front_counts[g]; i++)
@@ -333,8 +331,7 @@ static void write_incremental_cumulative_pareto_verbose (population *archive_pop
             {
                 seen_indices[seen_count] = idx;
                 seen_count++;
-                report_verbose_style_archive_individual(&(archive_pop->ind[idx]), fpt, g+1, member_id);
-                member_id++;
+                report_verbose_style_archive_individual(&(archive_pop->ind[idx]), fpt, g+1, idx+1);
             }
         }
     }

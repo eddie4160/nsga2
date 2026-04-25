@@ -3,6 +3,7 @@
 # include <stdio.h>
 # include <stdlib.h>
 # include <math.h>
+# include <time.h>
 
 # include "global.h"
 # include "rand.h"
@@ -352,7 +353,11 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     int *nd_indices;
     int nd_count;
     double *reference;
+    clock_t convergence_start_clock;
+    clock_t phase_clock;
+    double elapsed_seconds;
     FILE *fpt;
+    convergence_start_clock = clock();
     fpt = fopen(filename, "w");
     if (fpt == NULL)
     {
@@ -406,6 +411,8 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     }
     fprintf(fpt,"\n");
     fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
+    printf("\n[converge] report_convergence_metrics started: generations=%d, window=%d\n", generations, window_size);
+    phase_clock = clock();
     for (g=0; g<generations; g++)
     {
         update_running_pareto_archive_for_generation(archive_pop, generation_size, g, nd_indices, &nd_count);
@@ -414,7 +421,13 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
             window_index = g - start_generation;
             front_counts[window_index] = snapshot_deduplicated_front(archive_pop, nd_indices, nd_count, &(fronts[window_index]));
         }
+        if ((g+1) % 10 == 0 || g == generations-1)
+        {
+            elapsed_seconds = ((double)(clock() - phase_clock)) / (double)CLOCKS_PER_SEC;
+            printf("[converge] archive update progress: %d/%d generations processed (phase %.2fs)\n", g+1, generations, elapsed_seconds);
+        }
     }
+    phase_clock = clock();
     for (g=start_generation; g<generations; g++)
     {
         double hv_change;
@@ -434,6 +447,11 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
         }
         fprintf(fpt,"%d, %d, " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT ", " OUTPUT_DOUBLE_FORMAT "\n",
                 g+1, front_counts[window_index], hv_series[window_index], delta_series[window_index], hv_change, delta_change);
+        if ((window_index+1) % 10 == 0 || g == generations-1)
+        {
+            elapsed_seconds = ((double)(clock() - phase_clock)) / (double)CLOCKS_PER_SEC;
+            printf("[converge] metric write progress: %d/%d window generations processed (phase %.2fs)\n", window_index+1, window_size, elapsed_seconds);
+        }
     }
     for (g=0; g<window_size; g++)
     {
@@ -446,4 +464,6 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     free(hv_series);
     free(delta_series);
     fclose(fpt);
+    elapsed_seconds = ((double)(clock() - convergence_start_clock)) / (double)CLOCKS_PER_SEC;
+    printf("[converge] report_convergence_metrics completed in %.2fs\n", elapsed_seconds);
 }

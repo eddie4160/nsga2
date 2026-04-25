@@ -131,6 +131,19 @@ static void add_candidate_to_nondominated_set (population *archive_pop, int cand
     (*nd_count)++;
 }
 
+static void update_running_pareto_archive_for_generation (population *archive_pop, int generation_size, int generation_index, int *nd_indices, int *nd_count)
+{
+    int i;
+    int start;
+    start = generation_index * generation_size;
+    for (i=0; i<generation_size; i++)
+    {
+        int candidate_index;
+        candidate_index = start + i;
+        add_candidate_to_nondominated_set(archive_pop, candidate_index, nd_indices, nd_count);
+    }
+}
+
 static int snapshot_deduplicated_front (population *archive_pop, int *nd_indices, int nd_count, point **out_front)
 {
     int i;
@@ -395,13 +408,7 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
     fprintf(fpt,"generation, front_size, HV, Delta, hv_change, delta_change\n");
     for (g=0; g<generations; g++)
     {
-        int i;
-        for (i=0; i<generation_size; i++)
-        {
-            int candidate_index;
-            candidate_index = g*generation_size + i;
-            add_candidate_to_nondominated_set(archive_pop, candidate_index, nd_indices, &nd_count);
-        }
+        update_running_pareto_archive_for_generation(archive_pop, generation_size, g, nd_indices, &nd_count);
         if (g >= start_generation)
         {
             window_index = g - start_generation;

@@ -15,6 +15,7 @@
 typedef struct
 {
     double *obj;
+    int index;
 }
 point;
 
@@ -261,54 +262,12 @@ static int snapshot_deduplicated_front (population *archive_pop, int *nd_indices
         if (!duplicate)
         {
             front[count].obj = archive_pop->ind[sorted_nd[i]].obj;
+            front[count].index = sorted_nd[i];
             count++;
         }
     }
     free(sorted_nd);
     *out_front = front;
-    return count;
-}
-
-static int collect_deduplicated_front_indices (population *archive_pop, int *nd_indices, int nd_count, int **out_indices)
-{
-    int i;
-    int j;
-    int count;
-    int duplicate;
-    int *sorted_nd;
-    int *unique_indices;
-    if (nd_count <= 0)
-    {
-        *out_indices = (int *)malloc(sizeof(int));
-        return 0;
-    }
-    sorted_nd = (int *)malloc(nd_count*sizeof(int));
-    unique_indices = (int *)malloc(nd_count*sizeof(int));
-    for (i=0; i<nd_count; i++)
-    {
-        sorted_nd[i] = nd_indices[i];
-    }
-    qsort(sorted_nd, nd_count, sizeof(int), compare_int_asc);
-    count = 0;
-    for (i=0; i<nd_count; i++)
-    {
-        duplicate = 0;
-        for (j=0; j<i; j++)
-        {
-            if (same_reported_design_variables_for_convergence(&(archive_pop->ind[sorted_nd[j]]), &(archive_pop->ind[sorted_nd[i]])))
-            {
-                duplicate = 1;
-                break;
-            }
-        }
-        if (!duplicate)
-        {
-            unique_indices[count] = sorted_nd[i];
-            count++;
-        }
-    }
-    free(sorted_nd);
-    *out_indices = unique_indices;
     return count;
 }
 
@@ -335,11 +294,9 @@ static void report_verbose_style_archive_individual (individual *ind, FILE *fpt,
     fprintf(fpt,"\n");
 }
 
-static void write_cumulative_pareto_front_verbose (population *archive_pop, int generation_size, int *nd_indices, int nd_count, const char *filename)
+static void write_cumulative_pareto_front_verbose (population *archive_pop, int generation_size, point *front, int count, const char *filename)
 {
     int i;
-    int count;
-    int *dedup_indices;
     FILE *fpt;
     fpt = fopen(filename, "w");
     if (fpt == NULL)
@@ -348,14 +305,12 @@ static void write_cumulative_pareto_front_verbose (population *archive_pop, int 
         return;
     }
     fprintf(fpt,"number of generations, ID, x1(r1), x2(r2), x3(r3), x4(r4), x5(m1), x6(m2), x7(m3), x8(m4), x9(dh), f1(Pt), f2(Q), std_f1, std_f2\n");
-    count = collect_deduplicated_front_indices(archive_pop, nd_indices, nd_count, &dedup_indices);
     for (i=0; i<count; i++)
     {
         int generation;
-        generation = (dedup_indices[i] / generation_size) + 1;
-        report_verbose_style_archive_individual(&(archive_pop->ind[dedup_indices[i]]), fpt, generation, i+1);
+        generation = (front[i].index / generation_size) + 1;
+        report_verbose_style_archive_individual(&(archive_pop->ind[front[i].index]), fpt, generation, i+1);
     }
-    free(dedup_indices);
     fclose(fpt);
 }
 
@@ -589,7 +544,7 @@ void report_convergence_metrics (population *archive_pop, int generations, int g
             printf("[converge] archive update progress: %d/%d generations processed (phase %.2fs)\n", g+1, generations, elapsed_seconds);
         }
     }
-    write_cumulative_pareto_front_verbose(archive_pop, generation_size, nd_indices, nd_count, "cumulative_pareto_verbose.txt");
+    write_cumulative_pareto_front_verbose(archive_pop, generation_size, fronts[generations-1], front_counts[generations-1], "cumulative_pareto_verbose.txt");
     phase_clock = clock();
     for (g=0; g<generations; g++)
     {

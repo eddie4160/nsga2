@@ -4,6 +4,7 @@
 # include <stdlib.h>
 # include <math.h>
 # include <time.h>
+# include <string.h>
 
 # include "global.h"
 # include "rand.h"
@@ -131,6 +132,80 @@ static void add_candidate_to_nondominated_set (population *archive_pop, int cand
     (*nd_count)++;
 }
 
+static void add_candidate_to_nondominated_set_2d_sorted (population *archive_pop, int candidate_index, int *nd_indices, int *nd_count)
+{
+    int left;
+    int right;
+    int pos;
+    int remove_end;
+    individual *candidate;
+    double x0;
+    double x1;
+    candidate = &(archive_pop->ind[candidate_index]);
+    if (candidate->constr_violation != 0.0)
+    {
+        return;
+    }
+    x0 = candidate->obj[0];
+    x1 = candidate->obj[1];
+    left = 0;
+    right = *nd_count;
+    while (left < right)
+    {
+        int mid;
+        mid = (left + right) / 2;
+        if (archive_pop->ind[nd_indices[mid]].obj[0] < x0)
+        {
+            left = mid + 1;
+        }
+        else
+        {
+            right = mid;
+        }
+    }
+    pos = left;
+    if (pos > 0)
+    {
+        individual *prev;
+        prev = &(archive_pop->ind[nd_indices[pos-1]]);
+        if (prev->obj[1] <= x1)
+        {
+            return;
+        }
+    }
+    if (pos < *nd_count)
+    {
+        individual *next;
+        next = &(archive_pop->ind[nd_indices[pos]]);
+        if (next->obj[0] == x0 && next->obj[1] <= x1)
+        {
+            return;
+        }
+    }
+    remove_end = pos;
+    while (remove_end < *nd_count)
+    {
+        individual *cur;
+        cur = &(archive_pop->ind[nd_indices[remove_end]]);
+        if (cur->obj[1] < x1)
+        {
+            break;
+        }
+        remove_end++;
+    }
+    if (remove_end > pos)
+    {
+        memmove(&(nd_indices[pos]), &(nd_indices[remove_end]), ((*nd_count) - remove_end) * sizeof(int));
+        *nd_count -= (remove_end - pos);
+    }
+    if (pos < *nd_count)
+    {
+        memmove(&(nd_indices[pos+1]), &(nd_indices[pos]), ((*nd_count) - pos) * sizeof(int));
+    }
+    nd_indices[pos] = candidate_index;
+    (*nd_count)++;
+}
+
 static void update_running_pareto_archive_for_generation (population *archive_pop, int generation_size, int generation_index, int *nd_indices, int *nd_count)
 {
     int i;
@@ -140,7 +215,14 @@ static void update_running_pareto_archive_for_generation (population *archive_po
     {
         int candidate_index;
         candidate_index = start + i;
-        add_candidate_to_nondominated_set(archive_pop, candidate_index, nd_indices, nd_count);
+        if (nobj == 2)
+        {
+            add_candidate_to_nondominated_set_2d_sorted(archive_pop, candidate_index, nd_indices, nd_count);
+        }
+        else
+        {
+            add_candidate_to_nondominated_set(archive_pop, candidate_index, nd_indices, nd_count);
+        }
     }
 }
 
